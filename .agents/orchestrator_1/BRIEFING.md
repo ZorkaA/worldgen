@@ -56,13 +56,18 @@ Lead the end-to-end implementation and verification of the 3D procedural militar
 | test_writer_1 | teamwork_preview_test_writer | E2E Testing Track (Tiers 1-4, schemas, rubrics) | completed | 6e83aa77-c3eb-4134-83e8-774d034e5c84 |
 | m1_worker_1 | teamwork_preview_worker | M1 Asset Catalog Builder (Blender CLI + VLM) | completed | 6c4b47ec-cda2-453c-9736-8e0342507e4c |
 | m2_worker_1 | teamwork_preview_worker | M2 Procedural Generator Backend (FastAPI, Numba) | completed | b6c414ff-96bb-46cb-8590-a5cf21b23a3f |
-| m3_worker_1 | teamwork_preview_worker | M3 Interactive 3D Frontend (Vite + Three.js) | in-progress | 96cb57fb-0bf5-497c-9adf-b739b27976f0 |
-| m4_worker_1 | teamwork_preview_worker | M4 Unity Importer Package (C# Editor Script) | in-progress | eeb695da-df14-4412-a59f-21c964d189a9 |
+| m3_worker_1 | teamwork_preview_worker | M3 Interactive 3D Frontend (Vite + Three.js) | completed | 96cb57fb-0bf5-497c-9adf-b739b27976f0 |
+| m4_worker_1 | teamwork_preview_worker | M4 Unity Importer Package (C# Editor Script) | completed | eeb695da-df14-4412-a59f-21c964d189a9 |
+| reviewer_1 | teamwork_preview_reviewer | Review Backend & Catalog (R1, R2) | in-progress | 3e9c32a7-b027-4f2a-9d9b-e3a5b865e29f |
+| reviewer_2 | teamwork_preview_reviewer | Review Frontend & Unity Importer (R3, R4) | in-progress | 7579a36c-7c2a-4238-a200-898cebd72d2b |
+| challenger_1 | teamwork_preview_challenger | Backend Adversarial & Stress Testing | in-progress | 33e946c1-8bf1-4b8d-a1b0-c3e03caeeb73 |
+| challenger_2 | teamwork_preview_challenger | Frontend & Unity Edge-Case Verification | in-progress | de4ac1fb-550b-4b2a-bf88-18e214f5cc6f |
+| auditor_1 | teamwork_preview_auditor | Forensic Integrity Audit | in-progress | eaa843c2-c7be-4b03-a880-d455c8a61a99 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 8 / 16
-- Pending subagents: 96cb57fb-0bf5-497c-9adf-b739b27976f0, eeb695da-df14-4412-a59f-21c964d189a9
+- Spawn count: 13 / 16
+- Pending subagents: 3e9c32a7-b027-4f2a-9d9b-e3a5b865e29f, 7579a36c-7c2a-4238-a200-898cebd72d2b, 33e946c1-8bf1-4b8d-a1b0-c3e03caeeb73, de4ac1fb-550b-4b2a-bf88-18e214f5cc6f, eaa843c2-c7be-4b03-a880-d455c8a61a99
 - Predecessor: none
 - Successor: not yet spawned
 
