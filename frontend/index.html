@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>WorldGen 3D — Procedural Military World Designer</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="theme-tactical-dark">
+  <div id="app" class="app-layout">
+    <!-- Top Tactical Navigation Bar -->
+    <header class="top-nav" role="banner">
+      <div class="nav-brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 22 20 2 20" stroke-linejoin="round"/>
+          <circle cx="12" cy="14" r="3" fill="currentColor"/>
+        </svg>
+        <span class="brand-title">WORLDGEN <span class="brand-badge">3D</span></span>
+        <span class="brand-subtitle">Procedural Military Designer</span>
+      </div>
+
+      <div class="nav-center">
+        <div id="connection-badge" class="status-badge status-offline" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="connection-status-text">Checking Backend...</span>
+        </div>
+
+        <!-- Camera Preset Toolbar -->
+        <nav class="camera-toolbar" aria-label="Camera Controls">
+          <button type="button" class="btn-tool active" id="btn-cam-orbit" title="Orbit Perspective View (Shortcut: 1)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9z"/></svg>
+            <span>Orbit</span>
+          </button>
+          <button type="button" class="btn-tool" id="btn-cam-top" title="Top-Down Plan View (Shortcut: 2)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Top-Down</span>
+          </button>
+          <button type="button" class="btn-tool" id="btn-cam-iso" title="Isometric 45° View (Shortcut: 3)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span>Isometric</span>
+          </button>
+          <button type="button" class="btn-tool" id="btn-toggle-wireframe" title="Toggle Terrain Wireframe Mode (Shortcut: W)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 12h16M12 4v16"/></svg>
+            <span>Wireframe</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="nav-actions">
+        <button type="button" class="btn-primary" id="btn-quick-generate">
+          <svg class="spin-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+          <span id="btn-quick-generate-label">Generate World</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace: Left Controls, Center WebGL Canvas, Right Catalog & Export -->
+    <main class="app-main">
+      <!-- Left Config Sidebar -->
+      <aside class="panel side-panel left-panel" id="left-sidebar" aria-label="World Generation Parameters">
+        <div class="panel-header">
+          <div class="panel-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected="true" class="tab-btn active" id="tab-terrain" data-target="panel-terrain-content">Terrain Config</button>
+            <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-zones" data-target="panel-zones-content">Zone Config</button>
+          </div>
+        </div>
+
+        <div class="panel-body scrollable-container">
+          <!-- Terrain Config Section -->
+          <div id="panel-terrain-content" class="tab-content active" role="tabpanel" aria-labelledby="tab-terrain">
+            <div id="terrain-controls-container" class="config-container">
+              <!-- Dynamically populated by terrain_panel.js -->
+            </div>
+          </div>
+
+          <!-- Zone Config Section -->
+          <div id="panel-zones-content" class="tab-content" role="tabpanel" aria-labelledby="tab-zones" hidden>
+            <div id="zone-controls-container" class="config-container">
+              <!-- Dynamically populated by zone_panel.js -->
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center 3D Viewport -->
+      <section class="viewport-section" aria-label="3D Interactive Viewport">
+        <div id="viewport-canvas-container" class="viewport-canvas-container">
+          <canvas id="webgl-canvas"></canvas>
+
+          <!-- 3D HUD Floating Overlays -->
+          <div class="hud-overlay top-left-overlay">
+            <div class="hud-badge hud-stats-badge">
+              <span id="hud-fps-counter">60 FPS</span>
+              <span class="hud-divider">|</span>
+              <span id="hud-poly-counter">0 Tris</span>
+            </div>
+          </div>
+
+          <div class="hud-overlay top-right-overlay">
+            <div class="hud-compass" id="hud-compass" title="Orientation Compass">
+              <div class="compass-dial" id="compass-dial">
+                <span class="compass-n">N</span>
+                <span class="compass-e">E</span>
+                <span class="compass-s">S</span>
+                <span class="compass-w">W</span>
+                <div class="compass-needle" id="compass-needle"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hover / Selection Tooltip -->
+          <div id="scene-tooltip" class="scene-tooltip" role="tooltip" hidden>
+            <div class="tooltip-header" id="tooltip-title">Object Info</div>
+            <div class="tooltip-body" id="tooltip-body"></div>
+          </div>
+
+          <!-- Loading Splash Overlay -->
+          <div id="generation-spinner" class="viewport-spinner-overlay" hidden>
+            <div class="spinner-card">
+              <div class="radar-spinner">
+                <div class="radar-sweep"></div>
+                <div class="radar-ring"></div>
+                <div class="radar-ring inner"></div>
+              </div>
+              <h3 id="spinner-title">Generating World...</h3>
+              <p id="spinner-desc">Synthesizing multifractal terrain, Poisson zones & SAT buildings</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Asset Catalog & Manifest Export -->
+      <aside class="panel side-panel right-panel" id="right-sidebar" aria-label="Asset Catalog and World Manifest">
+        <div class="panel-header">
+          <div class="panel-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected="true" class="tab-btn active" id="tab-catalog" data-target="panel-catalog-content">Asset Catalog</button>
+            <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-manifest" data-target="panel-manifest-content">Manifest & Export</button>
+          </div>
+        </div>
+
+        <div class="panel-body scrollable-container">
+          <!-- Asset Catalog Section -->
+          <div id="panel-catalog-content" class="tab-content active" role="tabpanel" aria-labelledby="tab-catalog">
+            <div id="catalog-browser-container" class="config-container">
+              <!-- Dynamically populated by catalog_browser.js -->
+            </div>
+          </div>
+
+          <!-- Manifest Export Section -->
+          <div id="panel-manifest-content" class="tab-content" role="tabpanel" aria-labelledby="tab-manifest" hidden>
+            <div id="manifest-export-container" class="config-container">
+              <!-- Dynamically populated by manifest_panel.js -->
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Status Bar -->
+    <footer class="status-bar" role="contentinfo">
+      <div class="status-item">
+        <span class="status-label">Seed:</span>
+        <span class="status-value" id="status-seed">42</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Resolution:</span>
+        <span class="status-value" id="status-resolution">513 x 513</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Zones:</span>
+        <span class="status-value" id="status-zones">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Buildings:</span>
+        <span class="status-value" id="status-buildings">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Roads:</span>
+        <span class="status-value" id="status-roads">0</span>
+      </div>
+      <div class="status-item status-right">
+        <span class="status-label">Engine:</span>
+        <span class="status-value">Three.js WebGL2</span>
+      </div>
+    </footer>
+
+    <!-- Native Semantic Dialog Modals -->
+    <dialog id="detail-modal" class="tactical-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="modal-title" class="modal-title">Item Details</h3>
+          <button type="button" class="btn-icon" id="btn-close-modal" aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body" id="modal-body">
+          <!-- Dynamic details inserted here -->
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

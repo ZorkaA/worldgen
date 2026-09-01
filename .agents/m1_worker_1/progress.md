@@ -1,7 +1,7 @@
 # Progress Tracker - M1 Worker
 
-Last visited: 2026-09-01T22:07:00Z
-Status: Blender batch extraction and catalog building in progress
+Last visited: 2026-09-01T22:13:25Z
+Status: Milestone 1 Complete (100% verified)
 
 ## Task Checklist
 - [x] Read authoritative documentation (ORIGINAL_REQUEST.md, PROJECT.md, survey reports, spec reports)
@@ -16,8 +16,8 @@ Status: Blender batch extraction and catalog building in progress
 - [x] Implement `builder.py` (asset discovery, caching with hash/mtime, orchestration, `get_catalog()`, CLI entrypoint)
 - [x] Implement `backend/scripts/build_catalog.py`
 - [x] Add unit test suite in `tests/test_catalog_builder_unit.py`
-- [/] Run full catalog extraction & generation (currently running in background)
-- [ ] Validate catalog schema with `validate_catalog.py`
-- [ ] Run full pytest suite for catalog modules
-- [ ] Commit milestone changes to git
-- [ ] Write handoff report and notify parent
+- [x] Run full catalog extraction & generation (1623 assets extracted, 4584 renders created)
+- [x] Validate catalog schema with `validate_catalog.py --strict` (1623/1623 valid, 0 errors)
+- [x] Run full pytest suite for catalog modules (23/23 passing)
+- [x] Commit milestone changes to git (`commit 30f86aa`)
+- [x] Write handoff report and notify parent

@@ -53,14 +53,16 @@ Lead the end-to-end implementation and verification of the 3D procedural militar
 | survey_explorer_1 | teamwork_preview_explorer | Environment, Toolchain, Assets Survey | completed | d156338f-33aa-4b73-bb1c-d415bab2ff3b |
 | survey_spec_miner_2 | teamwork_preview_spec_miner | R1 & R2 Backend/Asset Specs | completed | aa603120-02b2-441f-81e2-06ca35d32ab4 |
 | survey_spec_miner_3 | teamwork_preview_spec_miner | R3 Frontend, R4 Unity, Verification Specs | completed | e783ed37-fc08-48f1-a19a-9d35cfaa8687 |
-| test_writer_1 | teamwork_preview_test_writer | E2E Testing Track (Tiers 1-4, schemas, rubrics) | in-progress | 6e83aa77-c3eb-4134-83e8-774d034e5c84 |
-| m1_worker_1 | teamwork_preview_worker | M1 Asset Catalog Builder (Blender CLI + VLM) | in-progress | 6c4b47ec-cda2-453c-9736-8e0342507e4c |
-| m2_worker_1 | teamwork_preview_worker | M2 Procedural Generator Backend (FastAPI, Numba) | in-progress | b6c414ff-96bb-46cb-8590-a5cf21b23a3f |
+| test_writer_1 | teamwork_preview_test_writer | E2E Testing Track (Tiers 1-4, schemas, rubrics) | completed | 6e83aa77-c3eb-4134-83e8-774d034e5c84 |
+| m1_worker_1 | teamwork_preview_worker | M1 Asset Catalog Builder (Blender CLI + VLM) | completed | 6c4b47ec-cda2-453c-9736-8e0342507e4c |
+| m2_worker_1 | teamwork_preview_worker | M2 Procedural Generator Backend (FastAPI, Numba) | completed | b6c414ff-96bb-46cb-8590-a5cf21b23a3f |
+| m3_worker_1 | teamwork_preview_worker | M3 Interactive 3D Frontend (Vite + Three.js) | in-progress | 96cb57fb-0bf5-497c-9adf-b739b27976f0 |
+| m4_worker_1 | teamwork_preview_worker | M4 Unity Importer Package (C# Editor Script) | in-progress | eeb695da-df14-4412-a59f-21c964d189a9 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 6 / 16
-- Pending subagents: 6e83aa77-c3eb-4134-83e8-774d034e5c84, 6c4b47ec-cda2-453c-9736-8e0342507e4c, b6c414ff-96bb-46cb-8590-a5cf21b23a3f
+- Spawn count: 8 / 16
+- Pending subagents: 96cb57fb-0bf5-497c-9adf-b739b27976f0, eeb695da-df14-4412-a59f-21c964d189a9
 - Predecessor: none
 - Successor: not yet spawned
 
