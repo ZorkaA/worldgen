@@ -1,0 +1,6 @@
+pyproject.toml
+worldgen_backend.egg-info/PKG-INFO
+worldgen_backend.egg-info/SOURCES.txt
+worldgen_backend.egg-info/dependency_links.txt
+worldgen_backend.egg-info/requires.txt
+worldgen_backend.egg-info/top_level.txt

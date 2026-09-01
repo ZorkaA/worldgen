@@ -1,0 +1,32 @@
+[project]
+name = "worldgen-backend"
+version = "0.1.0"
+description = "Procedural 3D World Generation Backend for Terrain, Zones, Buildings, and Roads"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "numba>=0.59.0",
+    "numpy>=1.24.0,<2.1.0",
+    "scipy>=1.11.0",
+    "pydantic>=2.6.0",
+    "pillow>=10.0.0",
+    "jsonschema>=4.20.0",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "backend/tests"]
+pythonpath = [".", "backend"]
+asyncio_mode = "auto"
