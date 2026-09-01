@@ -84,6 +84,9 @@ def get_manifest_endpoint(seed: Optional[int] = Query(None, description="Optiona
     return manifest
 
 
+from ..generator.buildings import load_asset_catalog, DEFAULT_SYNTHETIC_CATALOG
+
+
 @router.get("/catalog")
 @router.get("/v1/catalog")
 def get_catalog_endpoint():
@@ -91,7 +94,15 @@ def get_catalog_endpoint():
     if CATALOG_FILE.exists():
         try:
             with open(CATALOG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                assets = data.get("assets") or data.get("prefabs") or {}
+                for k, v in DEFAULT_SYNTHETIC_CATALOG.items():
+                    if k not in assets:
+                        assets[k] = v
+                data["assets"] = assets
+                data["prefabs"] = assets
+                data["asset_count"] = len(assets)
+                return data
         except Exception:
             pass
 
