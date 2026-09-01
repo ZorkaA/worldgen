@@ -58,7 +58,7 @@ def _erode_kernel(
 ):
     """Core Numba JIT loop for droplet hydraulic erosion."""
     rows, cols = heightmap.shape
-    np.random.seed(seed)
+    np.random.seed(int(seed) & 0x7FFFFFFF)
 
     # Pre-generate random initial positions
     start_xs = np.random.uniform(1.0, float(cols - 2), num_droplets)

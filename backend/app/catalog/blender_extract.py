@@ -87,16 +87,21 @@ def compute_world_bounds(scene: "bpy.types.Scene") -> Tuple[List[float], List[fl
                 min_coord[i] = min(min_coord[i], float(world_pt[i]))
                 max_coord[i] = max(max_coord[i], float(world_pt[i]))
 
-    # Clean near-zero precision artifacts
-    min_coord = [0.0 if abs(c) < 1e-5 else c for c in min_coord]
-    max_coord = [0.0 if abs(c) < 1e-5 else c for c in max_coord]
+    # Round min and max first
+    min_c = [round(c, 3) for c in min_coord]
+    max_c = [round(c, 3) for c in max_coord]
 
-    size = [max(1e-4, max_coord[i] - min_coord[i]) for i in range(3)]
-    center = [(min_coord[i] + max_coord[i]) / 2.0 for i in range(3)]
-    radius = 0.5 * math.sqrt(sum(s ** 2 for s in size))
-    ground_level_offset = -min_coord[2]
+    # Ensure min <= max and positive extent for planar meshes (decals)
+    for i in range(3):
+        if max_c[i] <= min_c[i]:
+            max_c[i] = round(min_c[i] + 0.001, 3)
 
-    return min_coord, max_coord, size, center, radius, ground_level_offset
+    size = [round(max_c[i] - min_c[i], 3) for i in range(3)]
+    center = [round((min_c[i] + max_c[i]) / 2.0, 3) for i in range(3)]
+    radius = round(0.5 * math.sqrt(sum(s ** 2 for s in size)), 3)
+    ground_level_offset = round(-min_c[2], 3)
+
+    return min_c, max_c, size, center, radius, ground_level_offset
 
 
 def configure_workbench_render(scene: "bpy.types.Scene", resolution: int = 512) -> None:

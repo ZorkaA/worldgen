@@ -263,9 +263,21 @@ def build_catalog(
             # Preserve cached
             entry = existing_assets[name]
             entry["file_hash"] = fhash
-            # Ensure alias keys
-            if "dimensions" not in entry["bounding_box"]:
-                entry["bounding_box"]["dimensions"] = entry["bounding_box"].get("size", [1.0, 1.0, 1.0])
+            # Ensure exact mathematical consistency of bounding box
+            if "bounding_box" in entry and isinstance(entry["bounding_box"], dict):
+                b = entry["bounding_box"]
+                min_v = [round(c, 3) for c in b.get("min", [0.0, 0.0, 0.0])]
+                max_v = [round(c, 3) for c in b.get("max", [1.0, 1.0, 1.0])]
+                for i in range(3):
+                    if max_v[i] <= min_v[i]:
+                        max_v[i] = round(min_v[i] + 0.001, 3)
+                sz_v = [round(max_v[i] - min_v[i], 3) for i in range(3)]
+                ctr_v = [round((min_v[i] + max_v[i]) / 2.0, 3) for i in range(3)]
+                b["min"] = min_v
+                b["max"] = max_v
+                b["size"] = sz_v
+                b["dimensions"] = sz_v
+                b["center"] = ctr_v
             if "thumbnails" not in entry:
                 entry["thumbnails"] = entry.get("render_paths", {})
             if "prefab_name" not in entry:

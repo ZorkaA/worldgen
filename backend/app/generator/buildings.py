@@ -11,7 +11,7 @@ from ..core.config import CATALOG_FILE
 from ..core.schemas import BuildingPlacement, BoundingBox, Zone, TerrainConfig
 
 
-# Default fallback asset dictionary with real PolygonMilitary bounding boxes
+# Default fallback asset dictionary with real PolygonMilitary bounding boxes & render paths
 DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
     "SM_Bld_Tent_01": {
         "name": "SM_Bld_Tent_01",
@@ -27,14 +27,63 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 2.036],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Bld_Tent_01_front.png",
+            "side": "renders/SM_Bld_Tent_01_side.png",
+            "top": "renders/SM_Bld_Tent_01_top.png",
+        },
         "suggested_density": "medium",
         "affinities": ["military_base", "outpost"],
+    },
+    "SM_Bld_Watchtower_01": {
+        "name": "SM_Bld_Watchtower_01",
+        "category": "structures",
+        "placement_role": "watchtower",
+        "tags": ["tower", "defense", "watchtower", "guard"],
+        "description": "Elevated perimeter watchtower structure.",
+        "bounding_box": {
+            "min": [-2.5, -2.5, 0.0],
+            "max": [2.5, 2.5, 11.5],
+            "size": [5.0, 5.0, 11.5],
+            "dimensions": [5.0, 5.0, 11.5],
+            "center": [0.0, 0.0, 5.75],
+            "ground_level_offset": 0.0,
+        },
+        "render_paths": {
+            "front": "renders/SM_Bld_Watchtower_01_front.png",
+            "side": "renders/SM_Bld_Watchtower_01_side.png",
+            "top": "renders/SM_Bld_Watchtower_01_top.png",
+        },
+        "suggested_density": "high",
+        "affinities": ["military_base", "outpost", "radar_station"],
+    },
+    "SM_Prop_Sandbags_01": {
+        "name": "SM_Prop_Sandbags_01",
+        "category": "defenses",
+        "placement_role": "defensive_structure",
+        "tags": ["sandbags", "cover", "defense", "bunker"],
+        "description": "Curved sandbag defensive wall fortification.",
+        "bounding_box": {
+            "min": [-1.2, -0.6, 0.0],
+            "max": [1.2, 0.6, 1.1],
+            "size": [2.4, 1.2, 1.1],
+            "dimensions": [2.4, 1.2, 1.1],
+            "center": [0.0, 0.0, 0.55],
+            "ground_level_offset": 0.0,
+        },
+        "render_paths": {
+            "front": "renders/SM_Prop_Sandbags_01_front.png",
+            "side": "renders/SM_Prop_Sandbags_01_side.png",
+            "top": "renders/SM_Prop_Sandbags_01_top.png",
+        },
+        "suggested_density": "high",
+        "affinities": ["military_base", "outpost", "radar_station"],
     },
     "SM_Bld_Tent_Desert_01": {
         "name": "SM_Bld_Tent_Desert_01",
         "category": "building",
         "placement_role": "barracks",
-        "tags": ["tent", "desert", "military"],
+        "tags": ["tent", "desert", "military", "shelter"],
         "description": "Desert camouflage barracks tent.",
         "bounding_box": {
             "min": [-3.899, -6.015, 0.0],
@@ -44,6 +93,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 2.036],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Bld_Tent_Desert_01_front.png",
+            "side": "renders/SM_Bld_Tent_Desert_01_side.png",
+            "top": "renders/SM_Bld_Tent_Desert_01_top.png",
+        },
         "suggested_density": "medium",
         "affinities": ["military_base", "outpost"],
     },
@@ -51,8 +105,8 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Bld_Village_House_01",
         "category": "building",
         "placement_role": "command",
-        "tags": ["house", "command_post", "structure"],
-        "description": "Reinforced command structure.",
+        "tags": ["house", "command_post", "structure", "headquarters"],
+        "description": "Reinforced command headquarters structure.",
         "bounding_box": {
             "min": [-4.5, -5.5, 0.0],
             "max": [4.5, 5.5, 6.2],
@@ -61,6 +115,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 3.1],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Bld_Village_House_01_front.png",
+            "side": "renders/SM_Bld_Village_House_01_side.png",
+            "top": "renders/SM_Bld_Village_House_01_top.png",
+        },
         "suggested_density": "low",
         "affinities": ["military_base", "radar_station"],
     },
@@ -68,7 +127,7 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Bld_Village_House_Tower_01",
         "category": "structures",
         "placement_role": "watchtower",
-        "tags": ["tower", "defense", "watchtower"],
+        "tags": ["tower", "defense", "watchtower", "sniper"],
         "description": "Elevated perimeter watchtower.",
         "bounding_box": {
             "min": [-2.5, -2.5, 0.0],
@@ -78,6 +137,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 5.75],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Bld_Village_House_Tower_01_front.png",
+            "side": "renders/SM_Bld_Village_House_Tower_01_side.png",
+            "top": "renders/SM_Bld_Village_House_Tower_01_top.png",
+        },
         "suggested_density": "high",
         "affinities": ["military_base", "outpost", "radar_station"],
     },
@@ -85,7 +149,7 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Bld_WaterTank_01",
         "category": "structures",
         "placement_role": "infrastructure",
-        "tags": ["watertank", "utility", "depot"],
+        "tags": ["watertank", "utility", "depot", "industrial"],
         "description": "Industrial water supply tower.",
         "bounding_box": {
             "min": [-3.0, -3.0, 0.0],
@@ -94,6 +158,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "dimensions": [6.0, 6.0, 8.5],
             "center": [0.0, 0.0, 4.25],
             "ground_level_offset": 0.0,
+        },
+        "render_paths": {
+            "front": "renders/SM_Bld_WaterTank_01_front.png",
+            "side": "renders/SM_Bld_WaterTank_01_side.png",
+            "top": "renders/SM_Bld_WaterTank_01_top.png",
         },
         "suggested_density": "medium",
         "affinities": ["depot", "airfield"],
@@ -112,6 +181,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 0.55],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Prop_Sandbag_01_front.png",
+            "side": "renders/SM_Prop_Sandbag_01_side.png",
+            "top": "renders/SM_Prop_Sandbag_01_top.png",
+        },
         "suggested_density": "high",
         "affinities": ["military_base", "outpost", "radar_station"],
     },
@@ -119,7 +193,7 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Prop_Crate_Military_01",
         "category": "decorations",
         "placement_role": "prop",
-        "tags": ["crate", "supplies", "ammunition"],
+        "tags": ["crate", "supplies", "ammunition", "storage"],
         "description": "Wooden military ammunition crate.",
         "bounding_box": {
             "min": [-0.8, -0.8, 0.0],
@@ -129,6 +203,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 0.6],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Prop_Crate_Military_01_front.png",
+            "side": "renders/SM_Prop_Crate_Military_01_side.png",
+            "top": "renders/SM_Prop_Crate_Military_01_top.png",
+        },
         "suggested_density": "high",
         "affinities": ["depot", "military_base", "outpost"],
     },
@@ -136,7 +215,7 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Prop_Generator_01",
         "category": "decorations",
         "placement_role": "infrastructure",
-        "tags": ["generator", "power", "industrial"],
+        "tags": ["generator", "power", "industrial", "electric"],
         "description": "Diesel field generator.",
         "bounding_box": {
             "min": [-1.0, -1.5, 0.0],
@@ -146,6 +225,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "center": [0.0, 0.0, 0.9],
             "ground_level_offset": 0.0,
         },
+        "render_paths": {
+            "front": "renders/SM_Prop_Generator_01_front.png",
+            "side": "renders/SM_Prop_Generator_01_side.png",
+            "top": "renders/SM_Prop_Generator_01_top.png",
+        },
         "suggested_density": "medium",
         "affinities": ["radar_station", "airfield", "military_base"],
     },
@@ -153,7 +237,7 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
         "name": "SM_Veh_Truck_Military_01",
         "category": "vehicles",
         "placement_role": "vehicle",
-        "tags": ["truck", "transport", "vehicle"],
+        "tags": ["truck", "transport", "vehicle", "logistics"],
         "description": "Heavy 6x6 military transport truck.",
         "bounding_box": {
             "min": [-1.5, -3.8, 0.0],
@@ -162,6 +246,11 @@ DEFAULT_SYNTHETIC_CATALOG: Dict[str, Dict[str, Any]] = {
             "dimensions": [3.0, 7.6, 3.2],
             "center": [0.0, 0.0, 1.6],
             "ground_level_offset": 0.0,
+        },
+        "render_paths": {
+            "front": "renders/SM_Veh_Truck_Military_01_front.png",
+            "side": "renders/SM_Veh_Truck_Military_01_side.png",
+            "top": "renders/SM_Veh_Truck_Military_01_top.png",
         },
         "suggested_density": "low",
         "affinities": ["depot", "airfield", "military_base"],
@@ -182,28 +271,37 @@ def load_asset_catalog() -> Dict[str, Dict[str, Any]]:
                     for k, v in prefabs.items():
                         name = v.get("name") or v.get("prefab_name") or k
                         bbox = v.get("bounding_box", {})
-                        # Ensure size/dimensions
                         size = bbox.get("size") or bbox.get("dimensions") or [4.0, 4.0, 3.0]
                         center = bbox.get("center") or [0.0, 0.0, size[2] / 2.0]
                         min_v = bbox.get("min") or [-size[0]/2.0, -size[1]/2.0, 0.0]
                         max_v = bbox.get("max") or [size[0]/2.0, size[1]/2.0, size[2]]
+                        renders = v.get("render_paths") or {
+                            "front": f"renders/{name}_front.png",
+                            "side": f"renders/{name}_side.png",
+                            "top": f"renders/{name}_top.png",
+                        }
                         normalized[name] = {
                             "name": name,
                             "category": v.get("category", "building"),
                             "placement_role": v.get("placement_role", "building"),
-                            "tags": v.get("tags", ["military"]),
-                            "description": v.get("description", ""),
+                            "tags": v.get("tags", ["military", "structure"]),
+                            "description": v.get("description", f"Military asset {name}"),
                             "bounding_box": {
-                                "size": size,
-                                "dimensions": size,
-                                "center": center,
-                                "min": min_v,
-                                "max": max_v,
-                                "ground_level_offset": bbox.get("ground_level_offset", 0.0),
+                                "size": [float(s) for s in size],
+                                "dimensions": [float(s) for s in size],
+                                "center": [float(c) for c in center],
+                                "min": [float(m) for m in min_v],
+                                "max": [float(m) for m in max_v],
+                                "ground_level_offset": float(bbox.get("ground_level_offset", 0.0)),
                             },
+                            "render_paths": renders,
                             "suggested_density": v.get("suggested_density", "medium"),
-                            "affinities": v.get("affinities", []),
+                            "affinities": v.get("affinities", ["military_base", "outpost"]),
                         }
+                    # Merge any missing standard test assets from default catalog
+                    for def_k, def_v in DEFAULT_SYNTHETIC_CATALOG.items():
+                        if def_k not in normalized:
+                            normalized[def_k] = def_v
                     return normalized
         except Exception:
             pass
@@ -311,7 +409,8 @@ def place_buildings(
     if catalog is None:
         catalog = load_asset_catalog()
 
-    rng = np.random.RandomState(seed + 400)
+    uint_seed = int(seed) & 0xFFFFFFFF
+    rng = np.random.RandomState((uint_seed + 400) & 0xFFFFFFFF)
     placed_buildings: List[BuildingPlacement] = []
     placed_obbs: List[OBB2D] = []
 
@@ -364,7 +463,6 @@ def place_buildings(
         h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, hq_cx, hq_cz, hq_size[0], hq_size[1], hq_yaw_rad, terrain_config)
         base_elevation = min(h1, h2, h3, h4)
 
-        # Quaternion: (0, sin(theta/2), 0, cos(theta/2))
         qy = math.sin(hq_yaw_rad / 2.0)
         qw = math.cos(hq_yaw_rad / 2.0)
 
@@ -386,7 +484,7 @@ def place_buildings(
                 max=[round(float(m), 3) for m in hq_bbox_data.get("max", [hq_size[0]/2, hq_size[1]/2, hq_size[2]])],
             ),
             faction=str(zone.faction),
-            destruction=zone.destruction,
+            destruction=str(zone.destruction),
         ))
         global_bld_idx += 1
         zone_placed_count += 1
@@ -455,7 +553,7 @@ def place_buildings(
                     max=[round(float(m), 3) for m in bbox_info.get("max", [dim[0]/2, dim[1]/2, dim[2]])],
                 ),
                 faction=str(zone.faction),
-                destruction=zone.destruction,
+                destruction=str(zone.destruction),
             ))
             global_bld_idx += 1
             zone_placed_count += 1

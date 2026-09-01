@@ -239,7 +239,15 @@ def _find_slope_aware_astar_path(
     final_waypoints = []
     for sx_pt, sy_pt, sz_pt in smooth_waypoints:
         hy = _sample_heightmap_bilinear(heightmap, sx_pt, sz_pt, world_w, world_l)
-        final_waypoints.append((round(sx_pt, 2), round(hy + 0.15, 2), round(sz_pt, 2)))
+        final_waypoints.append([round(sx_pt, 2), round(hy + 0.15, 2), round(sz_pt, 2)])
+
+    if len(final_waypoints) < 2:
+        start_h = _sample_heightmap_bilinear(heightmap, start_world[0], start_world[1], world_w, world_l)
+        goal_h = _sample_heightmap_bilinear(heightmap, goal_world[0], goal_world[1], world_w, world_l)
+        final_waypoints = [
+            [round(start_world[0], 2), round(start_h + 0.15, 2), round(start_world[1], 2)],
+            [round(goal_world[0], 2), round(goal_h + 0.15, 2), round(goal_world[1], 2)],
+        ]
 
     return final_waypoints
 
@@ -381,7 +389,7 @@ def _generate_zone_edges(zones: List[Zone], seed: int = 42) -> List[Tuple[int, i
             remaining_edges.append(edge)
 
     # Add 30% of remaining Delaunay edges for tactical loops
-    rng = np.random.RandomState(seed + 500)
+    rng = np.random.RandomState((int(seed) + 500) & 0x7FFFFFFF)
     extra_count = int(math.ceil(len(remaining_edges) * 0.30))
     if extra_count > 0 and remaining_edges:
         indices = rng.choice(len(remaining_edges), size=min(extra_count, len(remaining_edges)), replace=False)

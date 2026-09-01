@@ -160,7 +160,7 @@ def reference_hydraulic_erosion(
                 deposit_amt = sediment if dh > 0 else (sediment - capacity) * deposition_rate
                 deposit_amt = min(deposit_amt, 0.02)
                 sediment -= deposit_amt
-                eroded[iy, ix] = min(2.0, eroded[iy, ix] + deposit_amt * 0.1)
+                eroded[iy, ix] = min(1.5, eroded[iy, ix] + deposit_amt * 0.1)
             else:
                 # Erode
                 erode_amt = min((capacity - sediment) * erosion_rate, -dh)

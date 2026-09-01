@@ -40,12 +40,48 @@ def generate_world_pipeline(
     if effective_seed is None:
         effective_seed = 42
 
-    terrain_config = request.terrain if (request and request.terrain) else TerrainConfig()
-    zone_config = request.zones if (request and request.zones) else ZoneConfig()
+    # Map negative seed to unsigned 32-bit integer for RNGs
+    uint_seed = int(effective_seed) & 0xFFFFFFFF
+
+    terrain_config = request.terrain.model_copy() if (request and request.terrain) else TerrainConfig()
+    zone_config = request.zones.model_copy() if (request and request.zones) else ZoneConfig()
+
+    # Merge flat request parameters if supplied
+    if request:
+        if request.resolution is not None:
+            terrain_config.resolution = request.resolution
+        if request.world_size is not None:
+            terrain_config.world_size = request.world_size
+        if request.scale is not None:
+            terrain_config.scale = request.scale
+        if request.octaves is not None:
+            terrain_config.octaves = request.octaves
+        if request.persistence is not None:
+            terrain_config.persistence = request.persistence
+        if request.lacunarity is not None:
+            terrain_config.lacunarity = request.lacunarity
+        if request.domain_warp_strength is not None:
+            terrain_config.domain_warp_strength = request.domain_warp_strength
+        if request.erosion_droplets is not None:
+            terrain_config.erosion_droplets = request.erosion_droplets
+        if request.height_scale is not None:
+            terrain_config.height_scale = request.height_scale
+        if request.min_zone_distance is not None:
+            zone_config.min_zone_distance = request.min_zone_distance
+        if request.zone_count_target is not None:
+            zone_config.zone_count_target = request.zone_count_target
+        if request.default_factions is not None:
+            zone_config.default_factions = request.default_factions
+        if request.max_destruction is not None:
+            zone_config.max_destruction = request.max_destruction
+        if request.min_radius is not None:
+            zone_config.min_radius = request.min_radius
+        if request.max_radius is not None:
+            zone_config.max_radius = request.max_radius
 
     # 1. Base Terrain Synthesis (Perlin FBM + Chained Domain Warping)
     t0 = time.perf_counter()
-    raw_heightmap = generate_terrain(config=terrain_config, seed=effective_seed)
+    raw_heightmap = generate_terrain(config=terrain_config, seed=uint_seed)
     t_terrain = time.perf_counter() - t0
 
     # 2. Hydraulic Erosion Simulation (Numba JIT)
@@ -53,7 +89,7 @@ def generate_world_pipeline(
     eroded_heightmap = simulate_hydraulic_erosion(
         heightmap=raw_heightmap,
         droplets=terrain_config.erosion_droplets,
-        seed=effective_seed,
+        seed=uint_seed,
     )
     t_erosion = time.perf_counter() - t0
 
@@ -63,7 +99,7 @@ def generate_world_pipeline(
         heightmap=eroded_heightmap,
         terrain_config=terrain_config,
         zone_config=zone_config,
-        seed=effective_seed,
+        seed=uint_seed,
     )
     t_zones = time.perf_counter() - t0
 
@@ -83,7 +119,7 @@ def generate_world_pipeline(
         heightmap=flattened_heightmap,
         zones=zones,
         terrain_config=terrain_config,
-        seed=effective_seed,
+        seed=uint_seed,
     )
     t_buildings = time.perf_counter() - t0
 
@@ -93,7 +129,7 @@ def generate_world_pipeline(
         heightmap=flattened_heightmap,
         zones=zones,
         terrain_config=terrain_config,
-        seed=effective_seed,
+        seed=uint_seed,
     )
     t_roads = time.perf_counter() - t0
 
@@ -102,6 +138,8 @@ def generate_world_pipeline(
     # Calculate grid cell size
     res = terrain_config.resolution
     world_w = terrain_config.world_size[0]
+    world_h = terrain_config.world_size[1]
+    world_l = terrain_config.world_size[2]
     cell_size = float(world_w / max(1, res - 1))
 
     # Construct final WorldManifest model
@@ -110,8 +148,9 @@ def generate_world_pipeline(
         seed=effective_seed,
         created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         generator="FastAPI Procedural WorldGen v1.0",
+        bounds=[0.0, 0.0, 0.0, float(world_w), float(world_h), float(world_l)],
         world_size_meters=float(world_w),
-        max_elevation_meters=float(terrain_config.world_size[1]),
+        max_elevation_meters=float(world_h),
         zone_count=len(zones),
         building_count=len(buildings),
         road_segment_count=len(roads),

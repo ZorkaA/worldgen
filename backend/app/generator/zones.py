@@ -40,7 +40,7 @@ def _poisson_disc_sampling(
     target_count: Optional[int] = None,
 ) -> List[Tuple[float, float]]:
     """Bridson's 2D Poisson-disc sampling algorithm."""
-    rng = np.random.RandomState(seed)
+    rng = np.random.RandomState(int(seed) & 0x7FFFFFFF)
 
     min_x, max_x = margin, width - margin
     min_z, max_z = margin, length - margin
@@ -202,7 +202,7 @@ def generate_zones(
     if zone_config is None:
         zone_config = ZoneConfig()
 
-    rng = np.random.RandomState(seed + 200)
+    rng = np.random.RandomState((int(seed) + 200) & 0x7FFFFFFF)
 
     world_w = terrain_config.world_size[0]
     world_l = terrain_config.world_size[2]
@@ -213,7 +213,7 @@ def generate_zones(
         length=world_l,
         r_min=zone_config.min_zone_distance,
         margin=max(60.0, zone_config.max_radius + 20.0),
-        seed=seed + 300,
+        seed=(int(seed) + 300) & 0x7FFFFFFF,
         target_count=zone_config.zone_count_target,
     )
 

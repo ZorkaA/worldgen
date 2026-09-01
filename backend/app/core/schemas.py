@@ -77,8 +77,9 @@ class ManifestMetadata(BaseModel):
 
     version: str = "1.0.0"
     seed: int
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
     generator: str = "FastAPI Procedural WorldGen v1.0"
+    bounds: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0, 1000.0, 150.0, 1000.0])
     world_size_meters: Optional[float] = 1000.0
     max_elevation_meters: Optional[float] = 150.0
     zone_count: Optional[int] = 0
@@ -102,31 +103,50 @@ class WorldManifest(BaseModel):
 
 # Configuration models for Generation
 class TerrainConfig(BaseModel):
-    resolution: int = Field(513, ge=33, le=2049)
-    scale: float = Field(256.0, ge=16.0, le=2048.0)
+    resolution: int = Field(513, ge=16, le=4096)
+    scale: float = Field(256.0, ge=1.0, le=4096.0)
     octaves: int = Field(6, ge=1, le=12)
-    persistence: float = Field(0.5, ge=0.05, le=0.95)
-    lacunarity: float = Field(2.0, ge=1.1, le=4.0)
-    domain_warp_strength: float = Field(35.0, ge=0.0, le=200.0)
+    persistence: float = Field(0.5, ge=0.01, le=0.99)
+    lacunarity: float = Field(2.0, ge=1.0, le=5.0)
+    domain_warp_strength: float = Field(35.0, ge=0.0, le=500.0)
     erosion_droplets: int = Field(50000, ge=0, le=500000)
-    height_scale: float = Field(100.0, ge=5.0, le=500.0)
+    height_scale: float = Field(100.0, ge=1.0, le=1000.0)
     world_size: List[float] = Field(default_factory=lambda: [1000.0, 150.0, 1000.0])
-    power_redistribution: float = Field(1.3, ge=0.5, le=3.0)
+    power_redistribution: float = Field(1.3, ge=0.1, le=5.0)
 
 
 class ZoneConfig(BaseModel):
-    min_zone_distance: float = Field(120.0, ge=30.0, le=600.0)
-    zone_count_target: Optional[int] = Field(None, ge=1, le=50)
+    min_zone_distance: float = Field(120.0, ge=10.0, le=1000.0)
+    zone_count_target: Optional[int] = Field(None, ge=1, le=100)
     default_factions: List[str] = Field(default_factory=lambda: ["A", "B", "C"])
     max_destruction: int = Field(4, ge=1, le=4)
-    min_radius: float = Field(35.0, ge=15.0, le=100.0)
-    max_radius: float = Field(75.0, ge=30.0, le=150.0)
+    min_radius: float = Field(35.0, ge=1.0, le=300.0)
+    max_radius: float = Field(75.0, ge=2.0, le=500.0)
 
 
 class GenerateWorldRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     seed: Optional[int] = None
     terrain: Optional[TerrainConfig] = None
     zones: Optional[ZoneConfig] = None
+
+    # Flat configuration overrides for top-level flexibility
+    resolution: Optional[int] = None
+    scale: Optional[float] = None
+    octaves: Optional[int] = None
+    persistence: Optional[float] = None
+    lacunarity: Optional[float] = None
+    domain_warp_strength: Optional[float] = None
+    erosion_droplets: Optional[int] = None
+    height_scale: Optional[float] = None
+    world_size: Optional[List[float]] = None
+    min_zone_distance: Optional[float] = None
+    zone_count_target: Optional[int] = None
+    default_factions: Optional[List[str]] = None
+    max_destruction: Optional[int] = None
+    min_radius: Optional[float] = None
+    max_radius: Optional[float] = None
 
 
 class GenerateWorldResponse(BaseModel):

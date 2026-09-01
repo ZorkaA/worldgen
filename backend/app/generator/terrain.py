@@ -7,7 +7,7 @@ from ..core.schemas import TerrainConfig
 
 def _generate_permutation_table(seed: int) -> np.ndarray:
     """Generate a 512-element permutation table from seed."""
-    rng = np.random.RandomState(seed)
+    rng = np.random.RandomState(int(seed) & 0x7FFFFFFF)
     p = np.arange(256, dtype=np.int32)
     rng.shuffle(p)
     return np.tile(p, 2)
@@ -112,7 +112,7 @@ def domain_warped_fbm(
     r(x) = (FBM(x + 4.0*q(x) + c_r1), FBM(x + 4.0*q(x) + c_r2))
     H(x) = FBM(x + warp_strength * r(x))
     """
-    rng = np.random.RandomState(seed + 100)
+    rng = np.random.RandomState((int(seed) + 100) & 0x7FFFFFFF)
     octave_offsets = rng.uniform(-1000.0, 1000.0, size=(octaves, 2)).astype(np.float32)
 
     if warp_strength <= 0.001:
