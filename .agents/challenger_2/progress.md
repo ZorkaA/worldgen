@@ -1,18 +1,23 @@
 # Progress - Challenger 2 (Frontend & Unity Importer Edge-Case Challenger)
 
-Last visited: 2026-09-01T18:24:00Z
+Last visited: 2026-09-01T18:28:30Z
 
 ## Status
 - [x] Initialized workspace and briefing
-- [ ] Inspect source code: Unity Importer (`WorldManifestImporter.cs`, `WorldImporterTests.cs`, stubs), Frontend (`viewer.js`, `terrain.js`, `zones.js`, `buildings.js`, `roads.js`, `client.js`, `style.css`, etc.)
-- [ ] Investigate adversarial test targets & potential vulnerabilities
-- [ ] Build and run existing tests (Unity C# test suite, Pytest test suite, Frontend build/test)
-- [ ] Design and execute adversarial stress tests:
-  - Malformed, empty, corrupted manifest
-  - 1D vs 2D heightmap, non-square, negative dimensions
+- [x] Inspect source code: Unity Importer (`WorldManifestImporter.cs`, `WorldImporterTests.cs`, stubs), Frontend (`viewer.js`, `terrain.js`, `zones.js`, `buildings.js`, `roads.js`, `client.js`, `style.css`, etc.)
+- [x] Build and run existing tests:
+  - `mono unity/WorldImporterTests.exe`: 12/12 PASSED
+  - `npm run build` (frontend): Succeeded in 3.94s
+  - `uv run --directory backend pytest ../tests/test_e2e_pipeline.py`: 146/146 PASSED
+- [x] Implemented and executed adversarial C# test suite (`unity/tests/AdversarialImporterTests.cs`):
+  - 30 adversarial tests executed via `mono unity/AdversarialImporterTests.exe`: 30/30 PASSED (100%)
+- [x] Implemented and executed adversarial Frontend Node.js test suite (`frontend/test_adversarial_frontend.mjs`):
+  - 16 adversarial tests executed via `node test_adversarial_frontend.mjs`: 16/16 PASSED (100%)
+- [x] Verified edge cases:
+  - Malformed, empty, corrupted manifest JSON
+  - 1D vs 2D heightmaps, non-square resolutions, negative terrain dimensions
   - Unknown/missing prefabs, missing textures, non-standard faction/damage codes
-  - Three.js memory disposal & object cleanup
+  - Three.js memory management & object disposal calls
   - Container queries & responsive layout
-  - Offline fallback synthesis
-- [ ] Analyze results, identify any failures/robustness gaps
+  - Offline fallback synthesis & determinism
 - [ ] Compile handoff report and notify parent

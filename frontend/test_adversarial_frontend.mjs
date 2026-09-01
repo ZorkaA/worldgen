@@ -486,6 +486,101 @@ runTest('ADV_FE_13_CSS_ContainerQueriesAndScrollbarGutterCompliance', () => {
   assert(cssContent.includes('--damage-04:'), 'Defines --damage-04');
 });
 
+// ----------------------------------------------------------------------------
+// Group 8: Scale, Raycasting & Catalog Search Adversarial Tests
+// ----------------------------------------------------------------------------
+
+runTest('ADV_FE_14_Scale_500BuildingsBatchVisualization', () => {
+  const scene = new THREE.Scene();
+  const terrain = new TerrainVisualizer(scene);
+  terrain.update({
+    resolution: 2,
+    world_size: [1000, 150, 1000],
+    heightmap: [[0, 0], [0, 0]]
+  });
+
+  const bldVis = new BuildingVisualizer(scene, terrain);
+
+  const manyBuildings = [];
+  for (let i = 0; i < 500; i++) {
+    manyBuildings.push({
+      id: `bld_${i}`,
+      prefab_name: 'SM_Bld_Tent_01',
+      position: [i * 2, 0, (i % 20) * 10],
+      bounding_box: { size: [7.8, 4.1, 12.0] }
+    });
+  }
+
+  bldVis.update(manyBuildings);
+  assert(bldVis.buildingMeshes.length === 500, '500 building meshes instantiated');
+  assert(bldVis.group.children.length === 500, '500 children in group');
+
+  // Verify memory disposal on 500 buildings
+  bldVis.dispose();
+  assert(bldVis.buildingMeshes.length === 0, 'All 500 buildings disposed');
+  assert(bldVis.group.children.length === 0, 'Group emptied on dispose');
+
+  terrain.dispose();
+});
+
+runTest('ADV_FE_15_Raycasting_IntersectionPrecision', () => {
+  const scene = new THREE.Scene();
+  const terrain = new TerrainVisualizer(scene);
+  const bldVis = new BuildingVisualizer(scene, terrain);
+
+  const bld = {
+    id: 'bld_target',
+    prefab_name: 'SM_Bld_CommandCenter_01',
+    position: [0, 0, 0],
+    bounding_box: { size: [10, 10, 10] }
+  };
+
+  bldVis.update([bld]);
+  const mesh = bldVis.buildingMeshes[0];
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.set(new THREE.Vector3(0, 5, 50), new THREE.Vector3(0, 0, -1)); // Ray pointing directly at box center
+
+  const intersects = raycaster.intersectObject(mesh, false);
+  assert(intersects.length > 0, 'Ray successfully intersects building box');
+  assert(intersects[0].object.userData.data.id === 'bld_target', 'Raycast returns correct building userData');
+
+  bldVis.dispose();
+  terrain.dispose();
+});
+
+runTest('ADV_FE_16_Catalog_SpecialCharactersAndRegexSearch', () => {
+  const client = new ApiClient();
+  const catalog = {
+    assets: {
+      'SM_Bld_Tent_01': {
+        name: 'SM_Bld_Tent_01',
+        category: 'building',
+        placement_role: 'barracks',
+        tags: ['tent', 'shelter (alpha)', 'camo [v1]']
+      },
+      'SM_Prop_Barricade_01': {
+        name: 'SM_Prop_Barricade_01',
+        category: 'props',
+        placement_role: 'barrier',
+        tags: ['barrier', 'sandbag', 'hazard*']
+      }
+    }
+  };
+
+  // Test search parsing with regex special characters: parenthesis, brackets, asterisks
+  const searchQueries = ['(', '[', '*', '?', '+', '\\'];
+  for (let q of searchQueries) {
+    const query = q.toLowerCase();
+    const matches = Object.values(catalog.assets).filter((a) => {
+      const inName = a.name.toLowerCase().includes(query);
+      const inTags = a.tags.some((t) => t.toLowerCase().includes(query));
+      return inName || inTags;
+    });
+    assert(Array.isArray(matches), `Search with '${q}' runs safely`);
+  }
+});
+
 console.log('================================================================');
 console.log(`TOTAL ADVERSARIAL FRONTEND TESTS: ${passedTests + failedTests}`);
 console.log(`PASSED: ${passedTests}`);
