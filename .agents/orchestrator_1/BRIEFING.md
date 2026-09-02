@@ -58,16 +58,16 @@ Lead the end-to-end implementation and verification of the 3D procedural militar
 | m2_worker_1 | teamwork_preview_worker | M2 Procedural Generator Backend (FastAPI, Numba) | completed | b6c414ff-96bb-46cb-8590-a5cf21b23a3f |
 | m3_worker_1 | teamwork_preview_worker | M3 Interactive 3D Frontend (Vite + Three.js) | completed | 96cb57fb-0bf5-497c-9adf-b739b27976f0 |
 | m4_worker_1 | teamwork_preview_worker | M4 Unity Importer Package (C# Editor Script) | completed | eeb695da-df14-4412-a59f-21c964d189a9 |
-| reviewer_1 | teamwork_preview_reviewer | Review Backend & Catalog (R1, R2) | in-progress | 3e9c32a7-b027-4f2a-9d9b-e3a5b865e29f |
-| reviewer_2 | teamwork_preview_reviewer | Review Frontend & Unity Importer (R3, R4) | in-progress | 7579a36c-7c2a-4238-a200-898cebd72d2b |
-| challenger_1 | teamwork_preview_challenger | Backend Adversarial & Stress Testing | in-progress | 33e946c1-8bf1-4b8d-a1b0-c3e03caeeb73 |
-| challenger_2 | teamwork_preview_challenger | Frontend & Unity Edge-Case Verification | in-progress | de4ac1fb-550b-4b2a-bf88-18e214f5cc6f |
-| auditor_1 | teamwork_preview_auditor | Forensic Integrity Audit | in-progress | eaa843c2-c7be-4b03-a880-d455c8a61a99 |
+| reviewer_1 | teamwork_preview_reviewer | Review Backend & Catalog (R1, R2) | completed | 3e9c32a7-b027-4f2a-9d9b-e3a5b865e29f |
+| reviewer_2 | teamwork_preview_reviewer | Review Frontend & Unity Importer (R3, R4) | completed | 7579a36c-7c2a-4238-a200-898cebd72d2b |
+| challenger_1 | teamwork_preview_challenger | Backend Adversarial & Stress Testing | completed | 33e946c1-8bf1-4b8d-a1b0-c3e03caeeb73 |
+| challenger_2 | teamwork_preview_challenger | Frontend & Unity Edge-Case Verification | completed | de4ac1fb-550b-4b2a-bf88-18e214f5cc6f |
+| auditor_1 | teamwork_preview_auditor | Forensic Integrity Audit | completed | eaa843c2-c7be-4b03-a880-d455c8a61a99 |
 
 ## Succession Status
 - Succession required: no
 - Spawn count: 13 / 16
-- Pending subagents: 3e9c32a7-b027-4f2a-9d9b-e3a5b865e29f, 7579a36c-7c2a-4238-a200-898cebd72d2b, 33e946c1-8bf1-4b8d-a1b0-c3e03caeeb73, de4ac1fb-550b-4b2a-bf88-18e214f5cc6f, eaa843c2-c7be-4b03-a880-d455c8a61a99
+- Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 

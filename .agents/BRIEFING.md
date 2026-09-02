@@ -1,13 +1,13 @@
-# BRIEFING — 2026-09-01T21:52:26+04:00
+# BRIEFING — 2026-09-02T11:59:30+04:00
 
 ## Mission
-Oversee the end-to-end development and verification of the 3D world designer (FastAPI/Vite/Three.js) and Unity importer.
+Oversee the end-to-end development, implementation, and rigorous verification of WorldGen V2 enhancements (dynamic map sizing, interactive zone CRUD/drag-recompute, smooth terrain deformation, AI-templated asset allocation, adaptive mesh tessellation, slope-limited A* routing, utilitarian UI cleanup).
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: /Users/jack/worldgen/.agents
-- Orchestrator: 069e459b-a13e-4233-a11c-5b3b3a0ba591
-- Victory Auditor: [to be spawned on victory claim]
+- Orchestrator: 5062bc8d-99d0-4c8c-80fa-f1c9db7afa89
+- Victory Auditor: [TBD]
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -16,14 +16,15 @@ Oversee the end-to-end development and verification of the 3D world designer (Fa
 - Two crons required: Progress Reporting (*/8) and Liveness Check (*/10)
 
 ## User Context
-- **Last user request**: Build web-based 3D world designer (FastAPI/Python + Vite/Three.js) and Unity C# importer
+- **Last user request**: WorldGen V2: Enhancing procedural military world generator with dynamic map sizing, interactive zone CRUD and drag-to-recompute, smooth terrain deformation, AI-templated asset allocation, adaptive terrain tessellation, and modern UI standards.
 - **Pending clarifications**: none
-- **Delivered results**: none
+- **Delivered results**: none for V2 (V1 completed previously)
 
 ## Project Status
 - **Phase**: in progress
 - **Route**: General (teamwork_preview_orchestrator)
-- **Active Orchestrator**: 069e459b-a13e-4233-a11c-5b3b3a0ba591
+- **Active Orchestrator**: 5062bc8d-99d0-4c8c-80fa-f1c9db7afa89
+- **Active Auditor**: TBD
 
 ## Victory Audit Status
 - **Triggered**: no
@@ -32,3 +33,5 @@ Oversee the end-to-end development and verification of the 3D world designer (Fa
 
 ## Artifact Index
 - /Users/jack/worldgen/.agents/ORIGINAL_REQUEST.md — Authoritative record of user requirements
+- /Users/jack/worldgen/PROJECT.md — Master project architecture and status
+

@@ -1,42 +1,34 @@
-# BRIEFING — 2026-09-01T22:00:00+04:00
+# BRIEFING — 2026-09-02T08:03:30Z
 
 ## Mission
-Survey local system environment, toolchains (Blender CLI, Ollama/VLM, Python/uv, Node.js), and Synty PolygonMilitary assets/mock datasets for the procedural military world designer.
+Conduct a comprehensive technical survey of the Backend codebase (backend/ and tests/) for WorldGen V2 requirements (R1, R3, R4, R5, Acceptance criteria).
 
 ## 🔒 My Identity
-- Archetype: teamwork_preview_explorer
-- Roles: Survey Explorer 1 (Environment, Toolchains & Assets)
+- Archetype: explorer
+- Roles: investigator, synthesizer
 - Working directory: /Users/jack/worldgen/.agents/survey_explorer_1
-- Original parent: 069e459b-a13e-4233-a11c-5b3b3a0ba591
-- Milestone: Survey Phase
+- Original parent: 5062bc8d-99d0-4c8c-80fa-f1c9db7afa89
+- Milestone: WorldGen V2 Survey
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT implement production source code outside `.agents/survey_explorer_1/`
-- Check Blender CLI at `/Applications/Blender.app/Contents/MacOS/Blender`
-- Check Ollama status, endpoint, models (`qwen3.8:27b`), fallback strategy
-- Check Synty PolygonMilitary assets or create sample/mock asset strategy
-- Check Python, `uv`, Node.js, npm, compilers
+- Read-only investigation — do NOT implement backend code changes directly
+- Output survey & architectural recommendation report to `/Users/jack/worldgen/.agents/survey_explorer_1/handoff.md`
+- Adhere strictly to project conventions and 5-component handoff report protocol
 
 ## Current Parent
-- Conversation ID: 069e459b-a13e-4233-a11c-5b3b3a0ba591
-- Updated: 2026-09-01T22:00:00+04:00
+- Conversation ID: 5062bc8d-99d0-4c8c-80fa-f1c9db7afa89
+- Updated: 2026-09-02T08:03:30Z
 
 ## Investigation State
-- **Explored paths**:
-  - `/Users/jack/Downloads/Synty Assets/unitypackage/Unity Asset POLYGON Military Low Poly 3D Art by Synty v1.02.unitypackage`
-  - `/Applications/Blender.app/Contents/MacOS/Blender`
-  - `http://localhost:11434/api/tags` and `/api/chat` (`qwen3.8:27b`)
-  - Python 3.10.14, `uv` 0.6.0, Node.js v22.22.2, npm 10.9.7, Unity 6000.2.12f1, Mono `csc`.
-- **Key findings**:
-  - Synty PolygonMilitary package found with 835 assets (412 FBX models, 409 prefabs, all faction A/B/C and destruction 01-04 textures, normal maps).
-  - Blender CLI verified for FBX import, bbox extraction (0.10s), multi-angle render (<3s) using `--background --factory-startup`.
-  - Ollama active with `qwen3.8:27b` (27.3B params, Metal GPU). Designed fast heuristic + cached + live VLM strategy.
-  - Python / `uv` resolves all dependencies (`fastapi`, `numba`, `numpy`, `scipy`, `pydantic`, `pytest`, `httpx`, `pillow`) in 2.5s.
-- **Unexplored areas**: None for survey scope; ready for implementation milestones.
+- **Explored paths**: `backend/app/generator/terrain.py`, `erosion.py`, `zones.py`, `roads.py`, `buildings.py`, `pipeline.py`, `api/routes.py`, `core/schemas.py`, `tests/` (285 passing tests), `frontend/src/scene/terrain.js`, `unity/Assets/Editor/WorldManifestImporter.cs`.
+- **Key findings**: Complete algorithmic mapping for R1 (km dimensions, granularity, deformation strength, edge margin, cosine/smootherstep falloffs), R3 (slope/curvature adaptive mesh decimation + max_road_slope enforcement), R4 (continuous density slider + offline JSON layout templates), and programmatic test suite specifications.
+- **Unexplored areas**: None for backend survey scope.
 
 ## Key Decisions Made
-- Recommended architecture: dual-mode asset catalog builder (heuristic + cached + live VLM), FastAPI backend with Numba erosion, Vite + Three.js frontend, Unity Editor importer.
+- Formulated slope/curvature-adaptive 2D point cloud sampling + Delaunay triangulation for backend mesh decimation.
+- Defined dual-representation in `TerrainManifest` (`mesh` alongside `heightmap`) for seamless Three.js and Unity support.
+- Defined offline JSON layout template architecture and priority-based SAT placement.
 
 ## Artifact Index
-- `/Users/jack/worldgen/.agents/survey_explorer_1/survey_report.md` — Comprehensive Environment, Toolchains & Asset Survey Report
-- `/Users/jack/worldgen/.agents/survey_explorer_1/handoff.md` — Handoff report
+- `/Users/jack/worldgen/.agents/survey_explorer_1/progress.md` — Liveness and progress heartbeat
+- `/Users/jack/worldgen/.agents/survey_explorer_1/handoff.md` — Comprehensive Technical Survey & Architecture Recommendation Report

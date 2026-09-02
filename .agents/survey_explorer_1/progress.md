@@ -1,12 +1,12 @@
-# Progress — Survey Explorer 1
+# Progress Log — survey_explorer_1
 
-- Last visited: 2026-09-01T22:00:00+04:00
-- Status: Investigation Complete
-- Steps completed:
-  - [x] Initialized workspace and briefing
-  - [x] Located and inventoried Synty PolygonMilitary assets (412 FBX, 409 prefabs, textures A/B/C and 01-04)
-  - [x] Tested and verified Blender CLI bbox extraction and 3-angle render pipeline
-  - [x] Tested and verified Ollama status, `qwen3.8:27b` model, multimodal chat API, and fallback/mock strategies
-  - [x] Tested and verified Python, `uv`, Node.js, npm, Unity, and C# toolchains
-  - [x] Generated comprehensive survey report (`survey_report.md`)
-  - [x] Generated handoff report (`handoff.md`)
+Last visited: 2026-09-02T08:03:30Z
+
+- [x] Initialized DISPATCH.md, BRIEFING.md, progress.md
+- [x] Investigate current heightmap generation & parameters (`backend/app/generator/terrain.py`, `erosion.py`, `zones.py`, `roads.py`, `buildings.py`, `api/routes.py`, `core/schemas.py`)
+- [x] Investigate R1 implementation (dimensions in km, granularity/resolution, deformation strength, edge margin offset, smooth zone flattening falloff)
+- [x] Investigate R3 implementation (Backend mesh decimation with variable triangle/quad density based on slope/flatness, slope-adaptive meshing, manifest schema update, max_road_slope in A* road pathfinding)
+- [x] Investigate R4 implementation (continuous density slider, offline JSON layout templates for zone buildings with Qwen)
+- [x] Investigate tests/ infrastructure and test design for R1/R3 acceptance criteria (dimensions, mesh indices, road slope limits)
+- [x] Synthesize findings into handoff.md
+- [x] Send completion message to parent

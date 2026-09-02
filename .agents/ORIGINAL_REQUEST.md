@@ -38,3 +38,38 @@ It must spawn all prefabs (linked correctly) grouped by zone, and automatically 
 - [ ] Review rubric confirms the C# Unity importer uses `PrefabUtility.InstantiatePrefab` and includes the correct material swapping logic for faction/damage.
 
 **Note from user**: Make sure to test that everything works correctly and completely!
+
+## Follow-up — 2026-09-02T07:59:05Z
+
+WorldGen V2: Enhancing the procedural military world generator with dynamic map sizing, interactive zone CRUD and drag-to-recompute, smooth terrain deformation, AI-templated asset allocation, and adaptive terrain tessellation.
+
+Working directory: /Users/jack/worldgen
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Global Map Parameters (Backend & Frontend)
+Update the UI and backend API to support configurable map dimensions (width/height in km), granularity (resolution slider), a terrain deformation strength slider, and an edge margin offset parameter. Terrain flattening for zones must use a smooth interpolation (e.g., cubic or cosine falloff) rather than linear to prevent near-vertical cliffs.
+
+### R2. Zone Editing & Interactivity (Frontend)
+Implement full CRUD (Add, Remove, Rename) for individual zones in the React side panel. Make zone centers manually draggable in the Three.js 3D viewport. When a zone is dropped, the frontend must trigger a backend recomputation of the terrain, roads, and assets, and smoothly update the viewport.
+
+### R3. Backend Adaptive Tessellation & Road Limits
+Implement backend mesh decimation: generate an optimized mesh structure where triangle/quad sizes vary depending on the area (e.g., larger triangles on flat plains, smaller/denser on steep slopes). This optimized mesh must be sent to the frontend and Unity. Additionally, add a configurable `max_road_slope` limit for the A* road routing algorithm to prevent unrealistic vertical roads.
+
+### R4. AI-Driven Asset Allocation
+Replace the density dropdown with a continuous density slider. Replace random asset allocation with a system driven by offline JSON layout templates (which you will generate using the Qwen model), ensuring structured, denser, and more realistic environments based on zone type.
+
+### R5. UI Cleanup & Standards
+Strip generic or "AI slop" terminology (e.g., "Procedural Military Designer") from the UI, keeping it strictly utilitarian. 
+*Important: You must execute the `modern-web-guidance` skill before implementing any frontend changes to ensure modern web standards.*
+
+## Acceptance Criteria
+
+### API and Backend Verification
+- [ ] Programmatic tests verify that changing map dimensions returns arrays and mesh indices of the correct corresponding sizes.
+- [ ] Automated tests verify that road paths strictly adhere to the `max_road_slope` parameter.
+
+### Frontend and Unity Verification (Agent-as-Judge)
+- [ ] Review rubric confirms the frontend successfully allows dragging a zone and visually updates the terrain and footprint without a full page reload.
+- [ ] Review rubric confirms the backend decimation produces variable-sized triangles/quads that load correctly in both Three.js and the Unity importer.

@@ -1,14 +1,11 @@
-# Progress Log — Survey Spec Miner 3
+# Progress - survey_spec_miner_3
 
-- **Last visited**: 2026-09-01T21:56:45Z
-- **Status**: Completed Survey Phase Spec Mining for R3 (Frontend), R4 (Unity Importer), and Acceptance Criteria & E2E Testing Suite.
+Last visited: 2026-09-02T08:04:00Z
 
-## Completed Steps
-1. Initialized DISPATCH.md, BRIEFING.md, and local skill copy of `modern-web-guidance`.
-2. Located Synty PolygonMilitary assets and verified material/texture naming conventions (`PolygonMilitary_Texture_0[1-4]_[A-C].png`, `PolygonMilitary_Mat_0[1-4]_[A-C].mat`, `PolygonMilitary_Mat_0[1-4]_[A-C].mat`).
-3. Retrieved modern-web-guidance for CSS layout and modern web primitives (container queries, scrollbar-gutter, native dialog/popover).
-4. Conducted deep dive into Three.js heightmap terrain rendering, vertex displacement, Float32Array elevation buffers, wireframe footprints, and ribbon/tube road generation.
-5. Specified Unity Importer C# architecture: EditorWindow, `TerrainData.SetHeights`, `PrefabUtility.InstantiatePrefab`, material swapping for `_MainTex` / `_BumpMap` (normal map).
-6. Specified complete testing harness: pytest endpoints (`test_manifest_schema.py`, `test_generator.py`), catalog validation (`validate_catalog.py`), frontend review rubrics, Unity review rubrics.
-7. Wrote detailed specification report to `/Users/jack/worldgen/.agents/survey_spec_miner_3/spec_report.md`.
-8. Generated 5-component handoff report to `/Users/jack/worldgen/.agents/survey_spec_miner_3/handoff.md`.
+## Status: COMPLETE
+- Completed in-depth investigation of current Unity Importer (`WorldManifestImporter.cs`), stubs, and C# test harness (12 unit tests + 30 adversarial tests verified passing with Mono).
+- Formulated complete mathematical and architectural specification for R3: handling adaptive decimated mesh data in Unity via `AdaptiveMeshGenerator` (`MeshFilter`, `MeshRenderer`, `MeshCollider`, 32-bit index buffer support).
+- Formulated complete JSON layout template specification and continuous density scaling mechanics ($D \in [0.0, 1.0]$) for 5 zone types (`military_base`, `airfield`, `outpost`, `radar_station`, `depot`), verified Ollama `qwen3.8:27b` availability and Python fallback generator.
+- Formulated exact updates for `tests/rubrics/frontend_rubric.md` and `tests/rubrics/unity_rubric.md` to evaluate V2 acceptance criteria.
+- Published comprehensive Technical Survey Report to `/Users/jack/worldgen/.agents/survey_spec_miner_3/handoff.md`.
+- Completed all survey deliverables.
