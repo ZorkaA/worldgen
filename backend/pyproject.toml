@@ -9,7 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.28.0",
     "numba>=0.59.0",
     "numpy>=1.24.0,<2.1.0",
-    "scipy>=1.11.0",
+    "scipy==1.13.1",
     "pydantic>=2.6.0",
     "pillow>=10.0.0",
     "jsonschema>=4.20.0",

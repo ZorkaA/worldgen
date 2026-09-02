@@ -73,3 +73,37 @@ Strip generic or "AI slop" terminology (e.g., "Procedural Military Designer") fr
 ### Frontend and Unity Verification (Agent-as-Judge)
 - [ ] Review rubric confirms the frontend successfully allows dragging a zone and visually updates the terrain and footprint without a full page reload.
 - [ ] Review rubric confirms the backend decimation produces variable-sized triangles/quads that load correctly in both Three.js and the Unity importer.
+
+## Follow-up — 2026-09-02T18:45:16+04:00
+
+This is a single self-contained fix; keep it small and focused. Fix the four critical bugs reported by the user regarding roads, terrain voids, camera conflicts, and API spam.
+
+Working directory: /Users/jack/worldgen
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Fix A* Road Pathfinding (`roads.py`)
+A* is currently aborting due to a low `max_expansions` limit (12,000), resulting in a fallback straight line that slices through mountains and air.
+- Increase `max_expansions` to at least `250,000`.
+- Update the fallback logic: if A* fails, do NOT draw a 2-point straight line. Instead, draw a straight line but sample the heightmap along it every 5-10 meters so the road follows the terrain instead of floating or slicing through it.
+- Use `scipy.spatial.Delaunay` instead of the custom Bowyer-Watson implementation to ensure proper connectivity without crossing edges.
+
+### R2. Fix Terrain Mesh Tears / Voids (`mesh.py` or `terrain.py`)
+The adaptive decimation or zone smoothing logic is creating jagged holes and black voids in the terrain mesh. Debug and fix the geometry generation so the mesh remains manifold and watertight, particularly around zone boundaries.
+
+### R3. Fix Drag vs. Orbit Camera Conflict (Frontend)
+When dragging zone centers in the 3D viewport, the camera behaves weirdly because `OrbitControls` is active simultaneously. 
+Disable `OrbitControls` on the `dragstart` event and re-enable it on `dragend`.
+
+### R4. Fix Backend Online/Offline Toggling (Frontend)
+The frontend keeps dropping the backend connection during zone movement because it is likely spamming the API on every frame of the drag event, causing the server to timeout.
+Ensure the `POST /api/generate` call is only fired on `dragend` (when the user releases the mouse), not continuously during the drag.
+
+## Acceptance Criteria
+
+### Verification
+- [ ] Agent-as-judge rubric confirms that the A* fallback correctly samples the heightmap and `max_expansions` is increased.
+- [ ] Agent-as-judge rubric confirms the Three.js frontend disables OrbitControls during drag and only calls the generation API on `dragend`.
+- [ ] Automated tests verify the terrain mesh has no degenerate or out-of-bounds indices causing holes.
+

@@ -107,12 +107,12 @@ export class WorldViewer {
     this.buildings = new BuildingVisualizer(this.scene, this.terrain);
     this.roads = new RoadVisualizer(this.scene, this.terrain);
 
-    // 7. Event Listeners
+    // 7. Event Listeners (Capture phase ensures zone beacon dragging disables OrbitControls cleanly)
     window.addEventListener('resize', this.onWindowResize.bind(this));
-    this.canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    this.canvas.addEventListener('pointerdown', this.onPointerDown.bind(this), { capture: true });
     this.canvas.addEventListener('pointermove', this.onPointerMove.bind(this));
-    window.addEventListener('pointerup', this.onPointerUp.bind(this));
-    window.addEventListener('pointercancel', this.onPointerUp.bind(this));
+    window.addEventListener('pointerup', this.onPointerUp.bind(this), { capture: true });
+    window.addEventListener('pointercancel', this.onPointerUp.bind(this), { capture: true });
     this.canvas.addEventListener('click', this.onCanvasClick.bind(this));
 
     // 8. Start Render Loop
@@ -277,9 +277,14 @@ export class WorldViewer {
           this.draggedZoneId = zoneId;
           this.dragStartPos = this.zones.getZonePosition(zoneId);
 
-          // Disable OrbitControls and switch cursor to grabbing
+          // R3: Disable OrbitControls on dragstart to prevent camera rotation conflict
           this.controls.enabled = false;
           this.canvas.style.cursor = 'grabbing';
+
+          // Prevent OrbitControls from capturing this pointerdown event
+          if (event.stopImmediatePropagation) {
+            event.stopImmediatePropagation();
+          }
           return;
         }
       }
@@ -308,7 +313,7 @@ export class WorldViewer {
           const clampedZ = Math.max(margin, Math.min(l - margin, pt.z));
           const clampedY = this.terrain.getElevationAt(clampedX, clampedZ);
 
-          // Live-translate zone visuals at 60 FPS
+          // Live-translate zone visuals client-side at 60 FPS (NO API calls during drag)
           this.zones.previewMoveZone(this.draggedZoneId, clampedX, clampedY, clampedZ);
 
           if (this.onZoneDragMoveCallback) {
@@ -361,7 +366,7 @@ export class WorldViewer {
       this.draggedZoneId = null;
       this.dragStartPos = null;
 
-      // Re-enable OrbitControls
+      // R3: Re-enable OrbitControls on dragend
       this.controls.enabled = true;
       this.canvas.style.cursor = 'default';
 
@@ -370,13 +375,17 @@ export class WorldViewer {
         if (finalPos) {
           const displacement = Math.hypot(finalPos.x - startPos.x, finalPos.z - startPos.z);
 
-          // If moved more than 1.0 meter, trigger recomputation callback
+          // R4: Trigger backend recompute ONLY on dragend (mouse release) if moved > 1.0m
           if (displacement > 1.0) {
             if (this.onZoneDroppedCallback) {
               this.onZoneDroppedCallback(zoneId, finalPos, displacement);
             }
           }
         }
+      }
+
+      if (event && event.stopImmediatePropagation) {
+        event.stopImmediatePropagation();
       }
     }
   }

@@ -4,9 +4,33 @@ import heapq
 import math
 import numpy as np
 from typing import List, Tuple, Dict, Any, Optional, Set
+from scipy.spatial import Delaunay
 
 from ..core.schemas import RoadSegment, Zone, TerrainConfig
 from .zones import _sample_heightmap_bilinear
+
+
+def _sample_terrain_straight_line(
+    heightmap: np.ndarray,
+    start_world: Tuple[float, float],
+    goal_world: Tuple[float, float],
+    world_w: float,
+    world_l: float,
+    sample_spacing: float = 8.0,
+) -> List[List[float]]:
+    """Sample the heightmap along a straight line every sample_spacing meters (5-10m)."""
+    dx = goal_world[0] - start_world[0]
+    dz = goal_world[1] - start_world[1]
+    dist = math.hypot(dx, dz)
+    num_steps = max(2, int(math.ceil(dist / max(1.0, sample_spacing))))
+    waypoints: List[List[float]] = []
+    for s in range(num_steps + 1):
+        t = s / float(num_steps)
+        wx = start_world[0] + dx * t
+        wz = start_world[1] + dz * t
+        wy = _sample_heightmap_bilinear(heightmap, wx, wz, world_w, world_l)
+        waypoints.append([round(wx, 2), round(wy + 0.15, 2), round(wz, 2)])
+    return waypoints
 
 
 def _catmull_rom_spline(
@@ -160,7 +184,7 @@ def _find_slope_aware_astar_path(
     came_from: Dict[Tuple[int, int], Tuple[int, int]] = {}
     visited = set()
 
-    max_expansions = 12000
+    max_expansions = 250000
     expansions = 0
 
     while open_set and expansions < max_expansions:
@@ -207,6 +231,17 @@ def _find_slope_aware_astar_path(
                 h_new = heuristic(nx, nz)
                 heapq.heappush(open_set, (tentative_g + h_new, h_new, neighbor_pos))
 
+    # If goal was never reached, fallback to heightmap-sampled straight line
+    if (gx, gz) not in came_from and (gx, gz) != (sx, sz):
+        return _sample_terrain_straight_line(
+            heightmap=heightmap,
+            start_world=start_world,
+            goal_world=goal_world,
+            world_w=world_w,
+            world_l=world_l,
+            sample_spacing=8.0,
+        )
+
     # Reconstruct path
     curr = (gx, gz)
     path_grid = [curr]
@@ -216,6 +251,16 @@ def _find_slope_aware_astar_path(
         if curr == (sx, sz):
             break
     path_grid.reverse()
+
+    if not path_grid or path_grid[0] != (sx, sz):
+        return _sample_terrain_straight_line(
+            heightmap=heightmap,
+            start_world=start_world,
+            goal_world=goal_world,
+            world_w=world_w,
+            world_l=world_l,
+            sample_spacing=8.0,
+        )
 
     # Convert grid points to world points (2D)
     points_2d = [
@@ -242,18 +287,20 @@ def _find_slope_aware_astar_path(
         final_waypoints.append([round(sx_pt, 2), round(hy + 0.15, 2), round(sz_pt, 2)])
 
     if len(final_waypoints) < 2:
-        start_h = _sample_heightmap_bilinear(heightmap, start_world[0], start_world[1], world_w, world_l)
-        goal_h = _sample_heightmap_bilinear(heightmap, goal_world[0], goal_world[1], world_w, world_l)
-        final_waypoints = [
-            [round(start_world[0], 2), round(start_h + 0.15, 2), round(start_world[1], 2)],
-            [round(goal_world[0], 2), round(goal_h + 0.15, 2), round(goal_world[1], 2)],
-        ]
+        return _sample_terrain_straight_line(
+            heightmap=heightmap,
+            start_world=start_world,
+            goal_world=goal_world,
+            world_w=world_w,
+            world_l=world_l,
+            sample_spacing=8.0,
+        )
 
     return final_waypoints
 
 
 def _delaunay_triangulation_2d(points: List[Tuple[float, float]]) -> List[Tuple[int, int]]:
-    """Pure Python / NumPy Bowyer-Watson 2D Delaunay Triangulation."""
+    """2D Delaunay Triangulation using scipy.spatial.Delaunay."""
     num_pts = len(points)
     if num_pts < 2:
         return []
@@ -263,80 +310,18 @@ def _delaunay_triangulation_2d(points: List[Tuple[float, float]]) -> List[Tuple[
         return [(0, 1), (1, 2), (0, 2)]
 
     pts = np.array(points, dtype=np.float64)
-
-    min_x, min_y = np.min(pts, axis=0) - 100.0
-    max_x, max_y = np.max(pts, axis=0) + 100.0
-    dx = max_x - min_x
-    dy = max_y - min_y
-    dmax = max(dx, dy)
-    mid_x = (min_x + max_x) / 2.0
-    mid_y = (min_y + max_y) / 2.0
-
-    st_p1 = (mid_x - 20.0 * dmax, mid_y - dmax)
-    st_p2 = (mid_x, mid_y + 20.0 * dmax)
-    st_p3 = (mid_x + 20.0 * dmax, mid_y - dmax)
-
-    all_pts = list(points) + [st_p1, st_p2, st_p3]
-    st_indices = {num_pts, num_pts + 1, num_pts + 2}
-
-    triangles: List[Tuple[int, int, int]] = [(num_pts, num_pts + 1, num_pts + 2)]
-
-    def in_circumcircle(p_idx: int, tri: Tuple[int, int, int]) -> bool:
-        ax, ay = all_pts[tri[0]]
-        bx, by = all_pts[tri[1]]
-        cx, cy = all_pts[tri[2]]
-        d = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
-        if abs(d) < 1e-9:
-            return False
-        ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
-        uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
-        r_sq = (ax - ux) ** 2 + (ay - uy) ** 2
-        px, py = all_pts[p_idx]
-        dist_sq = (px - ux) ** 2 + (py - uy) ** 2
-        return dist_sq <= r_sq
-
-    for i in range(num_pts):
-        bad_triangles = []
-        for tri in triangles:
-            if in_circumcircle(i, tri):
-                bad_triangles.append(tri)
-
-        polygon_edges: List[Tuple[int, int]] = []
-        for tri in bad_triangles:
-            edges = [
-                (min(tri[0], tri[1]), max(tri[0], tri[1])),
-                (min(tri[1], tri[2]), max(tri[1], tri[2])),
-                (min(tri[2], tri[0]), max(tri[2], tri[0])),
-            ]
-            for edge in edges:
-                shared = False
-                for other_tri in bad_triangles:
-                    if other_tri == tri:
-                        continue
-                    other_edges = [
-                        (min(other_tri[0], other_tri[1]), max(other_tri[0], other_tri[1])),
-                        (min(other_tri[1], other_tri[2]), max(other_tri[1], other_tri[2])),
-                        (min(other_tri[2], other_tri[0]), max(other_tri[2], other_tri[0])),
-                    ]
-                    if edge in other_edges:
-                        shared = True
-                        break
-                if not shared:
-                    polygon_edges.append(edge)
-
-        triangles = [t for t in triangles if t not in bad_triangles]
-
-        for edge in polygon_edges:
-            triangles.append((edge[0], edge[1], i))
-
-    final_edges: Set[Tuple[int, int]] = set()
-    for tri in triangles:
-        if not (tri[0] in st_indices or tri[1] in st_indices or tri[2] in st_indices):
-            final_edges.add((min(tri[0], tri[1]), max(tri[0], tri[1])))
-            final_edges.add((min(tri[1], tri[2]), max(tri[1], tri[2])))
-            final_edges.add((min(tri[2], tri[0]), max(tri[2], tri[0])))
-
-    return list(final_edges)
+    try:
+        tri = Delaunay(pts)
+        edges: Set[Tuple[int, int]] = set()
+        for simplex in tri.simplices:
+            i0, i1, i2 = int(simplex[0]), int(simplex[1]), int(simplex[2])
+            edges.add((min(i0, i1), max(i0, i1)))
+            edges.add((min(i1, i2), max(i1, i2)))
+            edges.add((min(i2, i0), max(i2, i0)))
+        return list(edges)
+    except Exception:
+        # Fallback for collinear/degenerate point sets
+        return [(i, i + 1) for i in range(num_pts - 1)]
 
 
 def _generate_zone_edges(zones: List[Zone], seed: int = 42) -> List[Tuple[int, int]]:

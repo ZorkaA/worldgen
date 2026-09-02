@@ -78,6 +78,8 @@ def generate_adaptive_mesh(
 
         sub_h = heightmap[z0 : z1 + 1, x0 : x1 + 1]
         sz_z, sz_x = sub_h.shape
+        if sz_z <= 1 or sz_x <= 1:
+            return 0.0
 
         xs = np.linspace(0.0, 1.0, sz_x)
         zs = np.linspace(0.0, 1.0, sz_z)
@@ -93,28 +95,88 @@ def generate_adaptive_mesh(
         error = np.max(np.abs(sub_h - interp))
         return float(error)
 
-    def subdivide(x0: int, z0: int, x1: int, z1: int):
-        err = evaluate_quad_error(x0, z0, x1, z1)
-        if err > max_error and (x1 - x0 > min_cell_size or z1 - z0 > min_cell_size):
-            xm = (x0 + x1) // 2
-            zm = (z0 + z1) // 2
-            subdivide(x0, z0, xm, zm)
-            subdivide(xm, z0, x1, zm)
-            subdivide(x0, zm, xm, z1)
-            subdivide(xm, zm, x1, z1)
-        else:
-            # Emit two triangles for this cell
-            v00 = get_or_create_vertex(x0, z0)
-            v10 = get_or_create_vertex(x1, z0)
-            v01 = get_or_create_vertex(x0, z1)
-            v11 = get_or_create_vertex(x1, z1)
+    leaf_quads: List[Tuple[int, int, int, int]] = []
 
-            # Triangle 1 (v00 -> v01 -> v10)
-            triangles.extend([v00, v01, v10])
-            # Triangle 2 (v10 -> v01 -> v11)
-            triangles.extend([v10, v01, v11])
+    def subdivide(x0: int, z0: int, x1: int, z1: int):
+        if x1 <= x0 or z1 <= z0:
+            return
+
+        can_split_x = (x1 - x0 > min_cell_size) and (x1 - x0 >= 2)
+        can_split_z = (z1 - z0 > min_cell_size) and (z1 - z0 >= 2)
+
+        err = evaluate_quad_error(x0, z0, x1, z1)
+        if err > max_error and (can_split_x or can_split_z):
+            if can_split_x and can_split_z:
+                xm = (x0 + x1) // 2
+                zm = (z0 + z1) // 2
+                subdivide(x0, z0, xm, zm)
+                subdivide(xm, z0, x1, zm)
+                subdivide(x0, zm, xm, z1)
+                subdivide(xm, zm, x1, z1)
+            elif can_split_x:
+                xm = (x0 + x1) // 2
+                subdivide(x0, z0, xm, z1)
+                subdivide(xm, z0, x1, z1)
+            elif can_split_z:
+                zm = (z0 + z1) // 2
+                subdivide(x0, z0, x1, zm)
+                subdivide(x0, zm, x1, z1)
+        else:
+            # Register corner vertices
+            get_or_create_vertex(x0, z0)
+            get_or_create_vertex(x1, z0)
+            get_or_create_vertex(x0, z1)
+            get_or_create_vertex(x1, z1)
+            leaf_quads.append((x0, z0, x1, z1))
 
     subdivide(0, 0, res_x - 1, res_z - 1)
+
+    def get_quad_perimeter_vertices(x0: int, z0: int, x1: int, z1: int) -> List[int]:
+        # CCW order in XZ:
+        # Left edge: (x0, z) for z in z0..z1
+        left_pts = [(x0, z) for z in range(z0, z1 + 1) if (x0, z) in vertex_map]
+        left_pts.sort(key=lambda p: p[1])
+
+        # Bottom edge: (x, z1) for x in x0..x1
+        bottom_pts = [(x, z1) for x in range(x0, x1 + 1) if (x, z1) in vertex_map]
+        bottom_pts.sort(key=lambda p: p[0])
+
+        # Right edge: (x1, z) for z in z1..z0
+        right_pts = [(x1, z) for z in range(z0, z1 + 1) if (x1, z) in vertex_map]
+        right_pts.sort(key=lambda p: p[1], reverse=True)
+
+        # Top edge: (x, z0) for x in x1..x0
+        top_pts = [(x, z0) for x in range(x0, x1 + 1) if (x, z0) in vertex_map]
+        top_pts.sort(key=lambda p: p[0], reverse=True)
+
+        ordered_keys: List[Tuple[int, int]] = []
+        for p in left_pts + bottom_pts + right_pts + top_pts:
+            if not ordered_keys or p != ordered_keys[-1]:
+                ordered_keys.append(p)
+        if len(ordered_keys) > 1 and ordered_keys[0] == ordered_keys[-1]:
+            ordered_keys.pop()
+
+        return [vertex_map[k] for k in ordered_keys]
+
+    # Emit watertight manifold triangles
+    for x0, z0, x1, z1 in leaf_quads:
+        poly = get_quad_perimeter_vertices(x0, z0, x1, z1)
+        if len(poly) == 4:
+            v00, v01, v11, v10 = poly[0], poly[1], poly[2], poly[3]
+            if v00 != v01 and v00 != v10 and v01 != v10:
+                triangles.extend([v00, v01, v10])
+            if v10 != v01 and v10 != v11 and v01 != v11:
+                triangles.extend([v10, v01, v11])
+        elif len(poly) > 4:
+            xm = (x0 + x1) // 2
+            zm = (z0 + z1) // 2
+            vm = get_or_create_vertex(xm, zm)
+            for k in range(len(poly)):
+                k_next = (k + 1) % len(poly)
+                v_curr = poly[k]
+                v_next = poly[k_next]
+                if v_curr != v_next and v_curr != vm and v_next != vm:
+                    triangles.extend([vm, v_curr, v_next])
 
     full_grid_triangles = 2 * (res_x - 1) * (res_z - 1)
     actual_triangles = len(triangles) // 3

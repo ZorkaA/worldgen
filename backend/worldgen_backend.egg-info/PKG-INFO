@@ -8,7 +8,7 @@ Requires-Dist: fastapi>=0.110.0
 Requires-Dist: uvicorn[standard]>=0.28.0
 Requires-Dist: numba>=0.59.0
 Requires-Dist: numpy<2.1.0,>=1.24.0
-Requires-Dist: scipy>=1.11.0
+Requires-Dist: scipy==1.13.1
 Requires-Dist: pydantic>=2.6.0
 Requires-Dist: pillow>=10.0.0
 Requires-Dist: jsonschema>=4.20.0
