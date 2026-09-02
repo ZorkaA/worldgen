@@ -399,6 +399,21 @@ def _generate_zone_edges(zones: List[Zone], seed: int = 42) -> List[Tuple[int, i
     return list(mst_edges)
 
 
+def compute_max_observed_slope(waypoints: List[List[float]]) -> float:
+    """Computes the maximum vertical slope (rise / run) along consecutive waypoints."""
+    slopes: List[float] = []
+    for i in range(len(waypoints) - 1):
+        p1 = waypoints[i]
+        p2 = waypoints[i + 1]
+        dx = p2[0] - p1[0]
+        dz = p2[2] - p1[2] if len(p2) >= 3 else p2[1] - p1[1]
+        dy = abs(p2[1] - p1[1]) if len(p2) >= 3 else 0.0
+        dist = math.hypot(dx, dz)
+        if dist > 1e-4:
+            slopes.append(dy / dist)
+    return float(max(slopes)) if slopes else 0.0
+
+
 def generate_roads(
     heightmap: np.ndarray,
     zones: List[Zone],
@@ -414,6 +429,7 @@ def generate_roads(
 
     edges = _generate_zone_edges(zones, seed=seed)
     roads: List[RoadSegment] = []
+    max_slope_limit = getattr(terrain_config, "max_road_slope", 0.25) or 0.25
 
     for edge_idx, (u_idx, v_idx) in enumerate(edges):
         zone_u = zones[u_idx]
@@ -429,10 +445,11 @@ def generate_roads(
             terrain_config=terrain_config,
             water_level=2.0,
             slope_weight=20.0,
-            max_grade=0.25,
+            max_grade=max_slope_limit,
         )
 
         formatted_waypoints = [[p[0], p[1], p[2]] for p in waypoints_3d]
+        max_slope_obs = compute_max_observed_slope(formatted_waypoints)
 
         road_seg = RoadSegment(
             id=f"road_{zone_u.id}_{zone_v.id}",
@@ -440,6 +457,7 @@ def generate_roads(
             to_zone=zone_v.id,
             width=6.0,
             waypoints=formatted_waypoints,
+            max_slope_observed=round(max_slope_obs, 3),
         )
         roads.append(road_seg)
 

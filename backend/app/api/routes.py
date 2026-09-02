@@ -9,15 +9,17 @@ from PIL import Image
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
-from ..core.config import CATALOG_FILE, RENDERS_DIR
+from ..core.config import CATALOG_FILE, TEMPLATES_FILE, RENDERS_DIR
 from ..core.schemas import (
     GenerateWorldRequest,
     GenerateWorldResponse,
+    RecomputeRequest,
     WorldManifest,
     HealthStatus,
+    TerrainConfig,
 )
 from ..generator.pipeline import generate_world_pipeline
-from ..generator.buildings import load_asset_catalog
+from ..generator.buildings import load_asset_catalog, load_zone_templates, DEFAULT_SYNTHETIC_CATALOG
 
 router = APIRouter()
 
@@ -26,6 +28,7 @@ _active_manifest: Optional[WorldManifest] = None
 _active_heightmap: Optional[np.ndarray] = None
 _manifest_cache: Dict[int, WorldManifest] = {}
 _heightmap_cache: Dict[int, np.ndarray] = {}
+_eroded_heightmap_cache: Dict[Tuple[int, int, float, float], np.ndarray] = {}
 
 
 def _get_or_create_manifest(seed: Optional[int] = None) -> Tuple[WorldManifest, np.ndarray]:
@@ -76,6 +79,50 @@ def generate_world_endpoint(request: Optional[GenerateWorldRequest] = None):
     )
 
 
+@router.post("/recompute", response_model=GenerateWorldResponse)
+@router.post("/v1/recompute", response_model=GenerateWorldResponse)
+def recompute_world_endpoint(request: Optional[RecomputeRequest] = None):
+    """Fast (<150ms) zone repositioning update endpoint."""
+    global _active_manifest, _active_heightmap
+
+    if request is None:
+        request = RecomputeRequest(seed=42)
+
+    effective_seed = request.seed if request.seed is not None else 42
+
+    # Map RecomputeRequest to GenerateWorldRequest
+    gen_req = GenerateWorldRequest(
+        seed=effective_seed,
+        terrain=request.terrain,
+        existing_zones=request.zones or request.zones_list or request.existing_zones,
+        resolution=request.resolution,
+        world_size=request.world_size,
+        map_width_km=request.map_width_km,
+        map_length_km=request.map_length_km,
+        deformation_strength=request.deformation_strength,
+        edge_margin=request.edge_margin,
+        flattening_falloff=request.flattening_falloff,
+        flattening_margin_ratio=request.flattening_margin_ratio,
+        max_road_slope=request.max_road_slope,
+        adaptive_mesh_max_error=request.adaptive_mesh_max_error,
+    )
+
+    manifest, heightmap, summary = generate_world_pipeline(request=gen_req, seed=effective_seed)
+
+    _active_manifest = manifest
+    _active_heightmap = heightmap
+    _manifest_cache[effective_seed] = manifest
+    _heightmap_cache[effective_seed] = heightmap
+
+    return GenerateWorldResponse(
+        success=True,
+        seed=effective_seed,
+        execution_time_seconds=summary["total_execution_time_seconds"],
+        summary=summary,
+        manifest=manifest,
+    )
+
+
 @router.get("/manifest", response_model=WorldManifest)
 @router.get("/v1/manifest", response_model=WorldManifest)
 def get_manifest_endpoint(seed: Optional[int] = Query(None, description="Optional seed to retrieve")):
@@ -84,8 +131,11 @@ def get_manifest_endpoint(seed: Optional[int] = Query(None, description="Optiona
     return manifest
 
 
-from ..generator.buildings import load_asset_catalog, DEFAULT_SYNTHETIC_CATALOG
-
+@router.get("/templates")
+@router.get("/v1/templates")
+def get_templates_endpoint():
+    """Retrieve the AI layout templates for all 5 zone types."""
+    return load_zone_templates()
 
 @router.get("/catalog")
 @router.get("/v1/catalog")
@@ -141,7 +191,7 @@ def get_heightmap_png_endpoint(seed: Optional[int] = Query(None)):
         norm_h = np.zeros_like(heightmap)
 
     uint16_data = (norm_h * 65535.0).astype(np.uint16)
-    img = Image.fromarray(uint16_data, mode="I;16")
+    img = Image.fromarray(uint16_data)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")

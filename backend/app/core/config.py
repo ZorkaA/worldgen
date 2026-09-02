@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 CATALOG_DIR = BASE_DIR / "catalog"
 CATALOG_FILE = CATALOG_DIR / "catalog.json"
+TEMPLATES_FILE = CATALOG_DIR / "templates.json"
 RENDERS_DIR = CATALOG_DIR / "renders"
 
 # Defaults

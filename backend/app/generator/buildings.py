@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 
-from ..core.config import CATALOG_FILE
+from ..core.config import CATALOG_FILE, TEMPLATES_FILE
 from ..core.schemas import BuildingPlacement, BoundingBox, Zone, TerrainConfig
+from ..catalog.generate_templates import TEMPLATES_DATA
 
 
 # Default fallback asset dictionary with real PolygonMilitary bounding boxes & render paths
@@ -395,19 +396,89 @@ def _sample_height_corners(
     return heights[0], heights[1], heights[2], heights[3], heights[4]
 
 
+def load_zone_templates() -> Dict[str, Any]:
+    """Load offline layout templates from JSON, falling back to TEMPLATES_DATA if file missing."""
+    if TEMPLATES_FILE.exists():
+        try:
+            with open(TEMPLATES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if "zone_templates" in data:
+                    return data
+        except Exception:
+            pass
+    return TEMPLATES_DATA
+
+
+def instantiate_templated_zone(
+    zone: Zone,
+    template: Dict[str, Any],
+    density: float,
+    catalog_bboxes: Dict[str, List[float]],
+) -> List[Dict[str, Any]]:
+    """
+    Instantiates building slots from a zone template given a continuous density value D in [0.0, 1.0].
+    Computes absolute world positions from sub-district offsets and slot relative positions.
+    """
+    placed_buildings: List[Dict[str, Any]] = []
+    zone_cx, zone_cy, zone_cz = zone.center
+
+    for district in template.get("sub_districts", []):
+        dist_ox, dist_oz = district.get("center_offset", [0.0, 0.0])
+
+        for slot in district.get("slots", []):
+            threshold = slot.get("density_threshold", 0.0)
+            if density < threshold:
+                continue  # Slot is inactive at this continuous density level
+
+            slot_rx, slot_rz = slot.get("rel_pos", [0.0, 0.0])
+            rot_yaw = slot.get("rotation_deg", 0.0)
+            candidates = slot.get("candidates", ["SM_Bld_Tent_01"])
+            prefab = candidates[0] if candidates else "SM_Bld_Tent_01"
+
+            # World position
+            wx = zone_cx + dist_ox + slot_rx
+            wz = zone_cz + dist_oz + slot_rz
+            wy = zone_cy
+
+            bbox_size = catalog_bboxes.get(prefab, [8.0, 8.0, 4.0])
+
+            bld_record = {
+                "id": f"{zone.id}_{slot['slot_id']}",
+                "zone_id": zone.id,
+                "prefab_name": prefab,
+                "placement_role": slot.get("placement_role", "building"),
+                "position": [round(wx, 2), round(wy, 2), round(wz, 2)],
+                "rotation": [0.0, round(rot_yaw, 1), 0.0],
+                "scale": [1.0, 1.0, 1.0],
+                "bounding_box": {
+                    "size": bbox_size,
+                    "center": [0.0, 0.0, round(bbox_size[2] / 2.0, 2)],
+                },
+                "buffer_meters": slot.get("buffer_meters", 2.0),
+            }
+            placed_buildings.append(bld_record)
+
+    return placed_buildings
+
+
 def place_buildings(
     heightmap: np.ndarray,
     zones: List[Zone],
     terrain_config: TerrainConfig,
     catalog: Optional[Dict[str, Dict[str, Any]]] = None,
+    templates: Optional[Dict[str, Any]] = None,
     seed: int = 42,
 ) -> List[BuildingPlacement]:
     """Place bounding-box aware buildings inside zones using SAT collision avoidance.
 
-    Returns a list of BuildingPlacement objects adhering to the schema.
+    Supports AI-driven offline layout templates with continuous density scaling (0.0 - 1.0).
     """
     if catalog is None:
         catalog = load_asset_catalog()
+    if templates is None:
+        templates = load_zone_templates()
+
+    zone_templates = templates.get("zone_templates", {})
 
     uint_seed = int(seed) & 0xFFFFFFFF
     rng = np.random.RandomState((uint_seed + 400) & 0xFFFFFFFF)
@@ -431,131 +502,294 @@ def place_buildings(
     for zone in zones:
         zx, zy, zz = zone.center[0], zone.center[1], zone.center[2]
         z_radius = zone.radius
-        z_density = zone.density.lower()
 
-        # Density bounds
-        if z_density == "low":
-            target_count = rng.randint(5, 9)
-        elif z_density == "high":
-            target_count = rng.randint(16, 26)
-        else:  # medium
-            target_count = rng.randint(9, 16)
+        # Determine zone type
+        z_type = getattr(zone, "zone_type", None) or getattr(zone, "type", None) or "military_base"
+
+        # Continuous density in [0.0, 1.0]
+        if isinstance(zone.density, (float, int)):
+            d_val = float(zone.density)
+        elif isinstance(zone.density, str):
+            density_str = zone.density.lower()
+            if density_str == "low":
+                d_val = 0.30
+            elif density_str == "high":
+                d_val = 0.90
+            elif density_str == "medium":
+                d_val = 0.60
+            else:
+                try:
+                    d_val = float(zone.density)
+                except ValueError:
+                    d_val = 0.60
+        else:
+            d_val = 0.60
+        d_val = max(0.0, min(1.0, d_val))
+
+        # Target count based on density
+        if d_val < 0.4:
+            target_count = rng.randint(4, 6)
+        elif d_val >= 0.75:
+            target_count = rng.randint(10, 16)
+        else:
+            target_count = rng.randint(6, 10)
 
         zone_obbs: List[OBB2D] = []
         zone_placed_count = 0
 
-        # 1. Primary HQ Building near center
-        hq_name = rng.choice(command_hqs)
-        hq_asset = catalog[hq_name]
-        hq_bbox_data = hq_asset["bounding_box"]
-        hq_size = hq_bbox_data.get("size") or hq_bbox_data.get("dimensions") or [8.0, 10.0, 4.0]
-        hq_yaw = float(rng.uniform(0.0, 360.0))
-        hq_yaw_rad = math.radians(hq_yaw)
+        # Template-driven placement
+        if z_type in zone_templates:
+            tpl = zone_templates[z_type]
+            # Collect and sort all subdistrict slots by priority
+            candidate_slots = []
+            for district in tpl.get("sub_districts", []):
+                dist_ox, dist_oz = district.get("center_offset", [0.0, 0.0])
+                for slot in district.get("slots", []):
+                    thresh = slot.get("density_threshold", 0.0)
+                    if d_val >= thresh:
+                        prio = slot.get("priority", 10)
+                        candidate_slots.append((prio, dist_ox, dist_oz, slot))
 
-        # Place HQ slightly offset from center
-        hq_cx = zx + rng.uniform(-4.0, 4.0)
-        hq_cz = zz + rng.uniform(-4.0, 4.0)
+            # Sort by priority (1 is highest)
+            candidate_slots.sort(key=lambda x: x[0])
 
-        hq_obb = OBB2D(hq_cx, hq_cz, hq_size[0], hq_size[1], hq_yaw_rad, buffer=2.0)
-        zone_obbs.append(hq_obb)
-        placed_obbs.append(hq_obb)
+            for prio, dist_ox, dist_oz, slot in candidate_slots:
+                slot_rx, slot_rz = slot.get("rel_pos", [0.0, 0.0])
+                rot_yaw = slot.get("rotation_deg", 0.0)
+                rot_yaw_rad = math.radians(rot_yaw)
 
-        h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, hq_cx, hq_cz, hq_size[0], hq_size[1], hq_yaw_rad, terrain_config)
-        base_elevation = min(h1, h2, h3, h4)
+                raw_ox = dist_ox + slot_rx
+                raw_oz = dist_oz + slot_rz
+                off_dist = math.hypot(raw_ox, raw_oz)
 
-        qy = math.sin(hq_yaw_rad / 2.0)
-        qw = math.cos(hq_yaw_rad / 2.0)
+                # Clamp to zone radius
+                max_allowed_r = z_radius * 0.80
+                if off_dist > max_allowed_r and off_dist > 1e-4:
+                    scale_factor = max_allowed_r / off_dist
+                    raw_ox *= scale_factor
+                    raw_oz *= scale_factor
 
-        placed_buildings.append(BuildingPlacement(
-            id=f"bld_{global_bld_idx}",
-            zone_id=zone.id,
-            prefab_name=hq_name,
-            category=hq_asset.get("category", "building"),
-            position=[round(hq_cx, 2), round(base_elevation, 2), round(hq_cz, 2)],
-            rotation=[0.0, round(hq_yaw, 1), 0.0],
-            rotation_euler=[0.0, round(hq_yaw, 1), 0.0],
-            rotation_quaternion=[0.0, round(qy, 4), 0.0, round(qw, 4)],
-            scale=[1.0, 1.0, 1.0],
-            bounding_box=BoundingBox(
-                size=[round(float(s), 3) for s in hq_size],
-                dimensions=[round(float(s), 3) for s in hq_size],
-                center=[0.0, 0.0, round(float(hq_size[2]) / 2.0, 3)],
-                min=[round(float(m), 3) for m in hq_bbox_data.get("min", [-hq_size[0]/2, -hq_size[1]/2, 0.0])],
-                max=[round(float(m), 3) for m in hq_bbox_data.get("max", [hq_size[0]/2, hq_size[1]/2, hq_size[2]])],
-            ),
-            faction=str(zone.faction),
-            destruction=str(zone.destruction),
-        ))
-        global_bld_idx += 1
-        zone_placed_count += 1
+                cand_cx = zx + raw_ox
+                cand_cz = zz + raw_oz
 
-        # 2. Secondary Support Structures and Props
-        candidate_pool = support_structures + defenses_and_props
-        max_attempts = target_count * 25
-        attempt = 0
+                candidates = slot.get("candidates", ["SM_Bld_Tent_01"])
+                # Pick available candidate from catalog
+                chosen_prefab = candidates[0] if candidates else "SM_Bld_Tent_01"
+                for cand in candidates:
+                    if cand in catalog:
+                        chosen_prefab = cand
+                        break
 
-        while zone_placed_count < target_count and attempt < max_attempts:
-            attempt += 1
-            asset_name = rng.choice(candidate_pool)
-            asset_data = catalog[asset_name]
-            bbox_info = asset_data["bounding_box"]
-            dim = bbox_info.get("size") or bbox_info.get("dimensions") or [3.0, 3.0, 2.0]
+                asset_meta = catalog.get(chosen_prefab, DEFAULT_SYNTHETIC_CATALOG.get(chosen_prefab, {}))
+                bbox_data = asset_meta.get("bounding_box", {})
+                dim = bbox_data.get("size") or bbox_data.get("dimensions") or [6.0, 6.0, 4.0]
+                buf = slot.get("buffer_meters", 1.5)
 
-            # Sample candidate position within zone radius
-            dist = rng.uniform(8.0, z_radius * 0.82)
-            angle = rng.uniform(0.0, 2.0 * math.pi)
-            cand_cx = zx + dist * math.cos(angle)
-            cand_cz = zz + dist * math.sin(angle)
-            cand_yaw = float(rng.uniform(0.0, 360.0))
-            cand_yaw_rad = math.radians(cand_yaw)
+                obb = OBB2D(cand_cx, cand_cz, dim[0], dim[1], rot_yaw_rad, buffer=buf)
 
-            cand_obb = OBB2D(cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, buffer=1.5)
+                # SAT Collision Check against all previously placed buildings (global & zone)
+                collides = False
+                for ex_obb in placed_obbs:
+                    if check_sat_overlap(obb, ex_obb):
+                        collides = True
+                        break
 
-            # Check SAT collision with all existing buildings in this zone
-            collision = False
-            for existing_obb in zone_obbs:
-                if check_sat_overlap(cand_obb, existing_obb):
-                    collision = True
-                    break
+                if collides:
+                    continue
 
-            if collision:
-                continue
+                # Ground elevation sampling
+                h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, cand_cx, cand_cz, dim[0], dim[1], rot_yaw_rad, terrain_config)
+                base_y = min(h1, h2, h3, h4)
 
-            # Check slope stability
-            h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, terrain_config)
-            slope_delta = max(h1, h2, h3, h4) - min(h1, h2, h3, h4)
-            if slope_delta > 2.5:
-                # Too steep, reject
-                continue
+                qy = math.sin(rot_yaw_rad / 2.0)
+                qw = math.cos(rot_yaw_rad / 2.0)
 
+                zone_obbs.append(obb)
+                placed_obbs.append(obb)
+
+                placed_buildings.append(BuildingPlacement(
+                    id=f"bld_{global_bld_idx}",
+                    zone_id=zone.id,
+                    prefab_name=chosen_prefab,
+                    category=asset_meta.get("category", "building"),
+                    position=[round(cand_cx, 2), round(base_y, 2), round(cand_cz, 2)],
+                    rotation=[0.0, round(rot_yaw, 1), 0.0],
+                    rotation_euler=[0.0, round(rot_yaw, 1), 0.0],
+                    rotation_quaternion=[0.0, round(qy, 4), 0.0, round(qw, 4)],
+                    scale=[1.0, 1.0, 1.0],
+                    bounding_box=BoundingBox(
+                        size=[round(float(s), 3) for s in dim],
+                        dimensions=[round(float(s), 3) for s in dim],
+                        center=[0.0, 0.0, round(float(dim[2]) / 2.0, 3)],
+                        min=[round(float(m), 3) for m in bbox_data.get("min", [-dim[0]/2, -dim[1]/2, 0.0])],
+                        max=[round(float(m), 3) for m in bbox_data.get("max", [dim[0]/2, dim[1]/2, dim[2]])],
+                    ),
+                    faction=str(zone.faction),
+                    destruction=str(zone.destruction),
+                ))
+                global_bld_idx += 1
+                zone_placed_count += 1
+
+            # If more buildings are desired for high density, add support props / barriers
+            if zone_placed_count < target_count and d_val >= 0.5:
+                candidate_pool = support_structures + defenses_and_props
+                max_attempts = (target_count - zone_placed_count) * 20
+                attempt = 0
+                while zone_placed_count < target_count and attempt < max_attempts:
+                    attempt += 1
+                    asset_name = rng.choice(candidate_pool)
+                    asset_data = catalog[asset_name]
+                    bbox_info = asset_data["bounding_box"]
+                    dim = bbox_info.get("size") or [3.0, 3.0, 2.0]
+
+                    dist = rng.uniform(8.0, z_radius * 0.78)
+                    angle = rng.uniform(0.0, 2.0 * math.pi)
+                    cand_cx = zx + dist * math.cos(angle)
+                    cand_cz = zz + dist * math.sin(angle)
+                    cand_yaw = float(rng.uniform(0.0, 360.0))
+                    cand_yaw_rad = math.radians(cand_yaw)
+
+                    cand_obb = OBB2D(cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, buffer=1.5)
+
+                    collides = False
+                    for ex_obb in placed_obbs:
+                        if check_sat_overlap(cand_obb, ex_obb):
+                            collides = True
+                            break
+                    if collides:
+                        continue
+
+                    h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, terrain_config)
+                    base_y = min(h1, h2, h3, h4)
+                    qy = math.sin(cand_yaw_rad / 2.0)
+                    qw = math.cos(cand_yaw_rad / 2.0)
+
+                    zone_obbs.append(cand_obb)
+                    placed_obbs.append(cand_obb)
+
+                    placed_buildings.append(BuildingPlacement(
+                        id=f"bld_{global_bld_idx}",
+                        zone_id=zone.id,
+                        prefab_name=asset_name,
+                        category=asset_data.get("category", "building"),
+                        position=[round(cand_cx, 2), round(base_y, 2), round(cand_cz, 2)],
+                        rotation=[0.0, round(cand_yaw, 1), 0.0],
+                        rotation_euler=[0.0, round(cand_yaw, 1), 0.0],
+                        rotation_quaternion=[0.0, round(qy, 4), 0.0, round(qw, 4)],
+                        scale=[1.0, 1.0, 1.0],
+                        bounding_box=BoundingBox(
+                            size=[round(float(s), 3) for s in dim],
+                            dimensions=[round(float(s), 3) for s in dim],
+                            center=[0.0, 0.0, round(float(dim[2]) / 2.0, 3)],
+                            min=[round(float(m), 3) for m in bbox_info.get("min", [-dim[0]/2, -dim[1]/2, 0.0])],
+                            max=[round(float(m), 3) for m in bbox_info.get("max", [dim[0]/2, dim[1]/2, dim[2]])],
+                        ),
+                        faction=str(zone.faction),
+                        destruction=str(zone.destruction),
+                    ))
+                    global_bld_idx += 1
+                    zone_placed_count += 1
+
+        else:
+            # Fallback procedural placement if zone type template not recognized
+            target_count = max(4, int(d_val * 16))
+            hq_name = rng.choice(command_hqs)
+            hq_asset = catalog[hq_name]
+            hq_bbox = hq_asset["bounding_box"]
+            hq_dim = hq_bbox.get("size") or [8.0, 10.0, 4.0]
+            hq_yaw = float(rng.uniform(0.0, 360.0))
+            hq_yaw_rad = math.radians(hq_yaw)
+
+            hq_cx = zx + rng.uniform(-2.0, 2.0)
+            hq_cz = zz + rng.uniform(-2.0, 2.0)
+            hq_obb = OBB2D(hq_cx, hq_cz, hq_dim[0], hq_dim[1], hq_yaw_rad, buffer=2.0)
+            zone_obbs.append(hq_obb)
+            placed_obbs.append(hq_obb)
+
+            h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, hq_cx, hq_cz, hq_dim[0], hq_dim[1], hq_yaw_rad, terrain_config)
             base_y = min(h1, h2, h3, h4)
-            qy = math.sin(cand_yaw_rad / 2.0)
-            qw = math.cos(cand_yaw_rad / 2.0)
-
-            zone_obbs.append(cand_obb)
-            placed_obbs.append(cand_obb)
+            qy = math.sin(hq_yaw_rad / 2.0)
+            qw = math.cos(hq_yaw_rad / 2.0)
 
             placed_buildings.append(BuildingPlacement(
                 id=f"bld_{global_bld_idx}",
                 zone_id=zone.id,
-                prefab_name=asset_name,
-                category=asset_data.get("category", "building"),
-                position=[round(cand_cx, 2), round(base_y, 2), round(cand_cz, 2)],
-                rotation=[0.0, round(cand_yaw, 1), 0.0],
-                rotation_euler=[0.0, round(cand_yaw, 1), 0.0],
+                prefab_name=hq_name,
+                category=hq_asset.get("category", "building"),
+                position=[round(hq_cx, 2), round(base_y, 2), round(hq_cz, 2)],
+                rotation=[0.0, round(hq_yaw, 1), 0.0],
+                rotation_euler=[0.0, round(hq_yaw, 1), 0.0],
                 rotation_quaternion=[0.0, round(qy, 4), 0.0, round(qw, 4)],
                 scale=[1.0, 1.0, 1.0],
                 bounding_box=BoundingBox(
-                    size=[round(float(s), 3) for s in dim],
-                    dimensions=[round(float(s), 3) for s in dim],
-                    center=[0.0, 0.0, round(float(dim[2]) / 2.0, 3)],
-                    min=[round(float(m), 3) for m in bbox_info.get("min", [-dim[0]/2, -dim[1]/2, 0.0])],
-                    max=[round(float(m), 3) for m in bbox_info.get("max", [dim[0]/2, dim[1]/2, dim[2]])],
+                    size=[round(float(s), 3) for s in hq_dim],
+                    dimensions=[round(float(s), 3) for s in hq_dim],
+                    center=[0.0, 0.0, round(float(hq_dim[2]) / 2.0, 3)],
+                    min=[round(float(m), 3) for m in hq_bbox.get("min", [-hq_dim[0]/2, -hq_dim[1]/2, 0.0])],
+                    max=[round(float(m), 3) for m in hq_bbox.get("max", [hq_dim[0]/2, hq_dim[1]/2, hq_dim[2]])],
                 ),
                 faction=str(zone.faction),
                 destruction=str(zone.destruction),
             ))
             global_bld_idx += 1
             zone_placed_count += 1
+
+            candidate_pool = support_structures + defenses_and_props
+            max_attempts = target_count * 20
+            attempt = 0
+            while zone_placed_count < target_count and attempt < max_attempts:
+                attempt += 1
+                asset_name = rng.choice(candidate_pool)
+                asset_data = catalog[asset_name]
+                bbox_info = asset_data["bounding_box"]
+                dim = bbox_info.get("size") or [3.0, 3.0, 2.0]
+
+                dist = rng.uniform(8.0, z_radius * 0.78)
+                angle = rng.uniform(0.0, 2.0 * math.pi)
+                cand_cx = zx + dist * math.cos(angle)
+                cand_cz = zz + dist * math.sin(angle)
+                cand_yaw = float(rng.uniform(0.0, 360.0))
+                cand_yaw_rad = math.radians(cand_yaw)
+
+                cand_obb = OBB2D(cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, buffer=1.5)
+
+                collides = False
+                for ex_obb in placed_obbs:
+                    if check_sat_overlap(cand_obb, ex_obb):
+                        collides = True
+                        break
+                if collides:
+                    continue
+
+                h_c, h1, h2, h3, h4 = _sample_height_corners(heightmap, cand_cx, cand_cz, dim[0], dim[1], cand_yaw_rad, terrain_config)
+                base_y = min(h1, h2, h3, h4)
+                qy = math.sin(cand_yaw_rad / 2.0)
+                qw = math.cos(cand_yaw_rad / 2.0)
+
+                zone_obbs.append(cand_obb)
+                placed_obbs.append(cand_obb)
+
+                placed_buildings.append(BuildingPlacement(
+                    id=f"bld_{global_bld_idx}",
+                    zone_id=zone.id,
+                    prefab_name=asset_name,
+                    category=asset_data.get("category", "building"),
+                    position=[round(cand_cx, 2), round(base_y, 2), round(cand_cz, 2)],
+                    rotation=[0.0, round(cand_yaw, 1), 0.0],
+                    rotation_euler=[0.0, round(cand_yaw, 1), 0.0],
+                    rotation_quaternion=[0.0, round(qy, 4), 0.0, round(qw, 4)],
+                    scale=[1.0, 1.0, 1.0],
+                    bounding_box=BoundingBox(
+                        size=[round(float(s), 3) for s in dim],
+                        dimensions=[round(float(s), 3) for s in dim],
+                        center=[0.0, 0.0, round(float(dim[2]) / 2.0, 3)],
+                        min=[round(float(m), 3) for m in bbox_info.get("min", [-dim[0]/2, -dim[1]/2, 0.0])],
+                        max=[round(float(m), 3) for m in bbox_info.get("max", [dim[0]/2, dim[1]/2, dim[2]])],
+                    ),
+                    faction=str(zone.faction),
+                    destruction=str(zone.destruction),
+                ))
+                global_bld_idx += 1
+                zone_placed_count += 1
 
     return placed_buildings

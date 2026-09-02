@@ -1,0 +1,436 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2.0.0",
+  "zone_templates": {
+    "military_base": {
+      "type": "military_base",
+      "display_name": "Fortified Military Base",
+      "sub_districts": [
+        {
+          "district_id": "command_hq",
+          "center_offset": [
+            0.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "hq_main",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "command",
+              "candidates": [
+                "SM_Bld_Village_House_01",
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 4.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "comms_array",
+              "rel_pos": [
+                15.0,
+                5.0
+              ],
+              "rotation_deg": 45.0,
+              "placement_role": "communications",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.3,
+              "buffer_meters": 3.0,
+              "priority": 2
+            }
+          ]
+        },
+        {
+          "district_id": "barracks_row",
+          "center_offset": [
+            -25.0,
+            15.0
+          ],
+          "slots": [
+            {
+              "slot_id": "barracks_1",
+              "rel_pos": [
+                -10.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "barracks",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.2,
+              "buffer_meters": 2.5,
+              "priority": 2
+            },
+            {
+              "slot_id": "barracks_2",
+              "rel_pos": [
+                10.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "barracks",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.6,
+              "buffer_meters": 2.5,
+              "priority": 3
+            }
+          ]
+        },
+        {
+          "district_id": "defense_perimeter",
+          "center_offset": [
+            0.0,
+            -35.0
+          ],
+          "slots": [
+            {
+              "slot_id": "sandbag_gate",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "barrier",
+              "candidates": [
+                "SM_Prop_Sandbags_01"
+              ],
+              "density_threshold": 0.4,
+              "buffer_meters": 2.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "watchtower_gate",
+              "rel_pos": [
+                12.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "defense",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.8,
+              "buffer_meters": 3.0,
+              "priority": 4
+            }
+          ]
+        }
+      ]
+    },
+    "airfield": {
+      "type": "airfield",
+      "display_name": "Tactical Airfield & Hangar Complex",
+      "sub_districts": [
+        {
+          "district_id": "flight_control",
+          "center_offset": [
+            0.0,
+            30.0
+          ],
+          "slots": [
+            {
+              "slot_id": "control_tower",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "command",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 5.0,
+              "priority": 1
+            }
+          ]
+        },
+        {
+          "district_id": "hangar_line",
+          "center_offset": [
+            -30.0,
+            -10.0
+          ],
+          "slots": [
+            {
+              "slot_id": "hangar_alpha",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "hangar",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.2,
+              "buffer_meters": 6.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "hangar_bravo",
+              "rel_pos": [
+                0.0,
+                25.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "hangar",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.7,
+              "buffer_meters": 6.0,
+              "priority": 3
+            }
+          ]
+        },
+        {
+          "district_id": "fuel_storage",
+          "center_offset": [
+            35.0,
+            -20.0
+          ],
+          "slots": [
+            {
+              "slot_id": "fuel_depot",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "logistics",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.5,
+              "buffer_meters": 4.0,
+              "priority": 2
+            }
+          ]
+        }
+      ]
+    },
+    "outpost": {
+      "type": "outpost",
+      "display_name": "Forward Recon Outpost",
+      "sub_districts": [
+        {
+          "district_id": "core_bunker",
+          "center_offset": [
+            0.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "main_tent",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "shelter",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 3.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "perimeter_tower",
+              "rel_pos": [
+                15.0,
+                15.0
+              ],
+              "rotation_deg": 45.0,
+              "placement_role": "defense",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.3,
+              "buffer_meters": 3.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "barrier_east",
+              "rel_pos": [
+                12.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "barrier",
+              "candidates": [
+                "SM_Prop_Sandbags_01"
+              ],
+              "density_threshold": 0.5,
+              "buffer_meters": 2.0,
+              "priority": 3
+            }
+          ]
+        }
+      ]
+    },
+    "radar_station": {
+      "type": "radar_station",
+      "display_name": "High-Altitude Radar Early Warning Station",
+      "sub_districts": [
+        {
+          "district_id": "radar_core",
+          "center_offset": [
+            0.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "radar_tower",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "radar",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 4.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "generator_room",
+              "rel_pos": [
+                -15.0,
+                -10.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "power",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.35,
+              "buffer_meters": 3.5,
+              "priority": 2
+            }
+          ]
+        },
+        {
+          "district_id": "security_checkpoint",
+          "center_offset": [
+            20.0,
+            20.0
+          ],
+          "slots": [
+            {
+              "slot_id": "gate_barrier",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 45.0,
+              "placement_role": "barrier",
+              "candidates": [
+                "SM_Prop_Sandbags_01"
+              ],
+              "density_threshold": 0.6,
+              "buffer_meters": 2.0,
+              "priority": 3
+            }
+          ]
+        }
+      ]
+    },
+    "depot": {
+      "type": "depot",
+      "display_name": "Logistics & Supply Storage Depot",
+      "sub_districts": [
+        {
+          "district_id": "warehouse_block",
+          "center_offset": [
+            0.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "warehouse_1",
+              "rel_pos": [
+                -15.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "storage",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 4.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "warehouse_2",
+              "rel_pos": [
+                15.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "storage",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.4,
+              "buffer_meters": 4.0,
+              "priority": 2
+            }
+          ]
+        },
+        {
+          "district_id": "supply_yard",
+          "center_offset": [
+            0.0,
+            25.0
+          ],
+          "slots": [
+            {
+              "slot_id": "supply_tent",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "logistics",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.25,
+              "buffer_meters": 3.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "cargo_perimeter",
+              "rel_pos": [
+                12.0,
+                10.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "barrier",
+              "candidates": [
+                "SM_Prop_Sandbags_01"
+              ],
+              "density_threshold": 0.75,
+              "buffer_meters": 2.0,
+              "priority": 4
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

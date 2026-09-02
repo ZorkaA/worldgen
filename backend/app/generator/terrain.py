@@ -214,16 +214,21 @@ def generate_terrain(
     ys = np.linspace(0.0, world_length, res, dtype=np.float32)
     grid_x, grid_y = np.meshgrid(xs, ys)
 
+    # Scale domain warp and persistence by deformation_strength
+    deform = getattr(config, "deformation_strength", 1.0)
+    effective_warp = config.domain_warp_strength * deform
+    effective_persistence = float(np.clip(config.persistence * (0.8 + 0.2 * deform), 0.01, 0.99)) if deform != 1.0 else config.persistence
+
     # Generate domain warped FBM
     raw_h = domain_warped_fbm(
         grid_x,
         grid_y,
         perm,
         octaves=config.octaves,
-        persistence=config.persistence,
+        persistence=effective_persistence,
         lacunarity=config.lacunarity,
         base_scale=config.scale,
-        warp_strength=config.domain_warp_strength,
+        warp_strength=effective_warp,
         seed=seed,
     )
 

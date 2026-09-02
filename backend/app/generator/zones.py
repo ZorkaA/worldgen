@@ -207,12 +207,18 @@ def generate_zones(
     world_w = terrain_config.world_size[0]
     world_l = terrain_config.world_size[2]
 
+    # Margin constraint (enforcing edge_margin)
+    configured_margin = getattr(zone_config, "edge_margin", None)
+    if configured_margin is None:
+        configured_margin = getattr(terrain_config, "edge_margin", 80.0)
+    effective_margin = max(float(configured_margin), zone_config.max_radius + 15.0)
+
     # Sample zone centers
     raw_centers = _poisson_disc_sampling(
         width=world_w,
         length=world_l,
         r_min=zone_config.min_zone_distance,
-        margin=max(60.0, zone_config.max_radius + 20.0),
+        margin=effective_margin,
         seed=(int(seed) + 300) & 0x7FFFFFFF,
         target_count=zone_config.zone_count_target,
     )
@@ -234,7 +240,14 @@ def generate_zones(
         destruction_int = int(rng.randint(1, zone_config.max_destruction + 1))
         destruction_str = f"{destruction_int:02d}"
 
-        density = rng.choice(["low", "medium", "high"], p=[0.25, 0.50, 0.25])
+        if zone_config.density is not None:
+            if isinstance(zone_config.density, (float, int)):
+                density = float(zone_config.density)
+            else:
+                density = str(zone_config.density)
+        else:
+            density = rng.choice(["low", "medium", "high"], p=[0.25, 0.50, 0.25])
+
         radius = float(rng.uniform(zone_config.min_radius, zone_config.max_radius))
 
         phi1 = float(rng.uniform(0.0, 2.0 * math.pi))
@@ -249,9 +262,10 @@ def generate_zones(
             id=zone_id,
             name=name,
             type=z_type,
+            zone_type=z_type,
             faction=str(faction),
             destruction=destruction_str,
-            density=str(density),
+            density=density,
             center=[round(cx, 2), round(cy, 2), round(cz, 2)],
             radius=round(radius, 2),
             footprint_points=footprint_poly,
@@ -278,10 +292,10 @@ def generate_zones(
 def flatten_zone_footprints(
     heightmap: np.ndarray,
     zones: List[Zone],
-    zone_internal_data: List[Dict[str, Any]],
+    zone_internal_data: Optional[List[Dict[str, Any]]],
     terrain_config: TerrainConfig,
 ) -> np.ndarray:
-    """Flatten plateau heightmap beneath zones using C1 Hermite smoothstep blending."""
+    """Flatten plateau heightmap beneath zones using smooth non-linear falloff (Cosine, Smootherstep, Cubic)."""
     res_y, res_x = heightmap.shape
     world_w = terrain_config.world_size[0]
     world_l = terrain_config.world_size[2]
@@ -293,15 +307,25 @@ def flatten_zone_footprints(
     zs = np.linspace(0.0, world_l, res_y, dtype=np.float32)
     grid_x, grid_z = np.meshgrid(xs, zs)
 
-    for i, zone in enumerate(zones):
-        meta = zone_internal_data[i]
-        cx = meta["center_x"]
-        cz = meta["center_z"]
-        base_r = meta["radius"]
-        phi1 = meta["phi1"]
-        phi2 = meta["phi2"]
+    falloff_type = getattr(terrain_config, "flattening_falloff", "cosine") or "cosine"
+    falloff_type = falloff_type.lower()
+    margin_ratio = getattr(terrain_config, "flattening_margin_ratio", 1.45) or 1.45
 
-        # Find median height inside core footprint
+    for i, zone in enumerate(zones):
+        if zone_internal_data and i < len(zone_internal_data):
+            meta = zone_internal_data[i]
+            cx = meta.get("center_x", zone.center[0])
+            cz = meta.get("center_z", zone.center[2])
+            base_r = meta.get("radius", zone.radius)
+            phi1 = meta.get("phi1", 0.0)
+            phi2 = meta.get("phi2", 0.0)
+        else:
+            cx = zone.center[0]
+            cz = zone.center[2]
+            base_r = zone.radius
+            phi1 = 0.0
+            phi2 = 0.0
+
         dx_grid = grid_x - cx
         dz_grid = grid_z - cz
         dist_grid = np.sqrt(dx_grid * dx_grid + dz_grid * dz_grid)
@@ -309,10 +333,10 @@ def flatten_zone_footprints(
 
         # Deformed radius field
         r_inner = base_r * (1.0 + 0.15 * np.sin(3.0 * theta_grid + phi1) + 0.10 * np.cos(5.0 * theta_grid + phi2))
-        r_outer = r_inner * 1.45
+        r_outer = r_inner * margin_ratio
 
         # Bounding box filter for optimization
-        max_reach = base_r * 1.6
+        max_reach = base_r * (margin_ratio * 1.15)
         mask_roi = dist_grid <= max_reach
 
         if not np.any(mask_roi):
@@ -328,12 +352,23 @@ def flatten_zone_footprints(
         # Update zone center elevation in zone object
         zone.center[1] = round(target_elevation, 2)
 
-        # Smoothstep blending factor t in [0.0, 1.0]
-        # t = 0 -> inside inner zone (full target elevation)
-        # t = 1 -> outside outer zone (original elevation)
-        t = np.clip((dist_grid[mask_roi] - r_inner[mask_roi]) / np.maximum(1e-4, (r_outer[mask_roi] - r_inner[mask_roi])), 0.0, 1.0)
-        # Hermite smoothstep w(t) = 3t^2 - 2t^3
-        w = t * t * (3.0 - 2.0 * t)
+        # Smooth falloff blending factor t in [0.0, 1.0]
+        # t = 0 -> inside inner zone (full target elevation, weight on terrain w = 0)
+        # t = 1 -> outside outer zone (original elevation, weight on terrain w = 1)
+        denom = np.maximum(1e-4, (r_outer[mask_roi] - r_inner[mask_roi]))
+        t = np.clip((dist_grid[mask_roi] - r_inner[mask_roi]) / denom, 0.0, 1.0)
+
+        if falloff_type == "cosine":
+            # Cosine C1 continuous falloff: 0.5 * (1 - cos(pi * t))
+            w = 0.5 * (1.0 - np.cos(np.pi * t))
+        elif falloff_type in ["smootherstep", "quintic"]:
+            # Perlin's C2 Quintic Smootherstep: 6t^5 - 15t^4 + 10t^3 = t^3 * (t * (6t - 15) + 10)
+            w = t * t * t * (t * (6.0 * t - 15.0) + 10.0)
+        elif falloff_type in ["cubic", "smoothstep"]:
+            # Hermite C1 Smoothstep: 3t^2 - 2t^3
+            w = t * t * (3.0 - 2.0 * t)
+        else:
+            w = 0.5 * (1.0 - np.cos(np.pi * t))
 
         current_h = flattened[mask_roi]
         blended_h = (1.0 - w) * target_elevation + w * current_h

@@ -66,6 +66,7 @@ backend/app/catalog/catalog.json
 *.json
 !package.json
 !backend/app/catalog/sample*.json
+!backend/app/catalog/templates.json
 !unity/package.json
 !frontend/package*.json
 

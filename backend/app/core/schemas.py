@@ -40,9 +40,10 @@ class Zone(BaseModel):
     id: str
     name: str
     type: Optional[str] = "military_base"
+    zone_type: Optional[str] = None
     faction: str = "A"
     destruction: Union[str, int] = "01"
-    density: str = "medium"
+    density: Union[float, str] = "medium"
     center: List[float]
     radius: float
     footprint_points: Optional[List[List[float]]] = None
@@ -57,6 +58,20 @@ class RoadSegment(BaseModel):
     to_zone: str
     width: float = 6.0
     waypoints: List[List[float]]
+    max_slope_observed: Optional[float] = None
+
+
+class DecimatedMesh(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    vertices: List[List[float]] = Field(default_factory=list)
+    indices: List[int] = Field(default_factory=list)
+    normals: List[List[float]] = Field(default_factory=list)
+    uvs: List[List[float]] = Field(default_factory=list)
+    vertex_count: int = 0
+    triangle_count: int = 0
+    full_grid_triangles: Optional[int] = None
+    decimation_ratio: float = 0.0
 
 
 class TerrainManifest(BaseModel):
@@ -70,15 +85,16 @@ class TerrainManifest(BaseModel):
     heightmap_encoding: Optional[str] = "float32_array"
     heightmap_url: Optional[str] = None
     heightmap_data: Optional[List[float]] = None
+    mesh: Optional[DecimatedMesh] = None
 
 
 class ManifestMetadata(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    version: str = "1.0.0"
+    version: str = "2.0.0"
     seed: int
     created_at: str = Field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
-    generator: str = "FastAPI Procedural WorldGen v1.0"
+    generator: str = "FastAPI Procedural WorldGen v2.0"
     bounds: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0, 1000.0, 150.0, 1000.0])
     world_size_meters: Optional[float] = 1000.0
     max_elevation_meters: Optional[float] = 150.0
@@ -114,6 +130,16 @@ class TerrainConfig(BaseModel):
     world_size: List[float] = Field(default_factory=lambda: [1000.0, 150.0, 1000.0])
     power_redistribution: float = Field(1.3, ge=0.1, le=5.0)
 
+    # V2 Global Parameters
+    map_width_km: Optional[float] = Field(None, ge=0.5, le=10.0)
+    map_length_km: Optional[float] = Field(None, ge=0.5, le=10.0)
+    deformation_strength: float = Field(1.0, ge=0.0, le=10.0)
+    edge_margin: float = Field(80.0, ge=0.0, le=1000.0)
+    flattening_falloff: str = Field("cosine", description="cosine, smootherstep, cubic, smoothstep")
+    flattening_margin_ratio: float = Field(1.45, ge=1.05, le=3.0)
+    max_road_slope: float = Field(0.25, ge=0.01, le=2.0)
+    adaptive_mesh_max_error: float = Field(1.0, ge=0.01, le=50.0)
+
 
 class ZoneConfig(BaseModel):
     min_zone_distance: float = Field(120.0, ge=10.0, le=1000.0)
@@ -122,6 +148,10 @@ class ZoneConfig(BaseModel):
     max_destruction: int = Field(4, ge=1, le=4)
     min_radius: float = Field(35.0, ge=1.0, le=300.0)
     max_radius: float = Field(75.0, ge=2.0, le=500.0)
+    edge_margin: Optional[float] = Field(80.0, ge=0.0, le=1000.0)
+    flattening_falloff: Optional[str] = "cosine"
+    flattening_margin_ratio: Optional[float] = 1.45
+    density: Optional[Union[float, str]] = None
 
 
 class GenerateWorldRequest(BaseModel):
@@ -129,7 +159,9 @@ class GenerateWorldRequest(BaseModel):
 
     seed: Optional[int] = None
     terrain: Optional[TerrainConfig] = None
-    zones: Optional[ZoneConfig] = None
+    zones: Optional[Union[ZoneConfig, List[Zone]]] = None
+    zones_list: Optional[List[Zone]] = None
+    existing_zones: Optional[List[Zone]] = None
 
     # Flat configuration overrides for top-level flexibility
     resolution: Optional[int] = None
@@ -141,12 +173,42 @@ class GenerateWorldRequest(BaseModel):
     erosion_droplets: Optional[int] = None
     height_scale: Optional[float] = None
     world_size: Optional[List[float]] = None
+    map_width_km: Optional[float] = None
+    map_length_km: Optional[float] = None
+    deformation_strength: Optional[float] = None
+    edge_margin: Optional[float] = None
+    flattening_falloff: Optional[str] = None
+    flattening_margin_ratio: Optional[float] = None
+    max_road_slope: Optional[float] = None
+    adaptive_mesh_max_error: Optional[float] = None
     min_zone_distance: Optional[float] = None
     zone_count_target: Optional[int] = None
     default_factions: Optional[List[str]] = None
     max_destruction: Optional[int] = None
     min_radius: Optional[float] = None
     max_radius: Optional[float] = None
+
+
+class RecomputeRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    seed: Optional[int] = None
+    terrain: Optional[TerrainConfig] = None
+    zones: Optional[List[Zone]] = None
+    zones_list: Optional[List[Zone]] = None
+    existing_zones: Optional[List[Zone]] = None
+
+    # Overrides
+    resolution: Optional[int] = None
+    world_size: Optional[List[float]] = None
+    map_width_km: Optional[float] = None
+    map_length_km: Optional[float] = None
+    deformation_strength: Optional[float] = None
+    edge_margin: Optional[float] = None
+    flattening_falloff: Optional[str] = None
+    flattening_margin_ratio: Optional[float] = None
+    max_road_slope: Optional[float] = None
+    adaptive_mesh_max_error: Optional[float] = None
 
 
 class GenerateWorldResponse(BaseModel):
@@ -159,7 +221,7 @@ class GenerateWorldResponse(BaseModel):
 
 class HealthStatus(BaseModel):
     status: str = "ok"
-    version: str = "1.0.0"
-    generator: str = "FastAPI Procedural WorldGen v1.0"
+    version: str = "2.0.0"
+    generator: str = "FastAPI Procedural WorldGen v2.0"
     catalog_available: bool = False
     catalog_asset_count: int = 0
