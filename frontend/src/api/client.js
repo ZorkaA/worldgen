@@ -1,6 +1,6 @@
 /**
  * API Client for WorldGen Backend with Complete Standalone Offline Fallback
- * Connects to FastAPI endpoints (/generate, /manifest, /catalog, /health)
+ * Connects to FastAPI endpoints (/generate, /recompute, /manifest, /catalog, /health)
  * Fallback to bundled sample data and client-side procedural synthesis when offline.
  */
 
@@ -69,8 +69,8 @@ export class ApiClient {
 
     // Minimal synthetic catalog if sample file fetch fails
     const synthetic = {
-      version: '1.0.0',
-      asset_count: 5,
+      version: '2.0.0',
+      asset_count: 6,
       assets: {
         'SM_Bld_Tent_01': {
           name: 'SM_Bld_Tent_01',
@@ -88,6 +88,41 @@ export class ApiClient {
             front: '/renders/SM_Bld_Tent_01_front.png',
             side: '/renders/SM_Bld_Tent_01_side.png',
             top: '/renders/SM_Bld_Tent_01_top.png'
+          }
+        },
+        'SM_Bld_Watchtower_01': {
+          name: 'SM_Bld_Watchtower_01',
+          category: 'structures',
+          placement_role: 'tower',
+          tags: ['tower', 'defense', 'sentry'],
+          description: 'Elevated wooden/steel perimeter watchtower.',
+          bounding_box: {
+            min: [-3.25, -3.25, 0.0],
+            max: [3.25, 3.25, 14.2],
+            size: [6.5, 6.5, 14.2],
+            center: [0.0, 0.0, 7.1]
+          }
+        },
+        'SM_Bld_Hangar_01': {
+          name: 'SM_Bld_Hangar_01',
+          category: 'building',
+          placement_role: 'hangar',
+          tags: ['hangar', 'aircraft', 'depot'],
+          description: 'Reinforced aircraft and vehicle maintenance hangar.',
+          bounding_box: {
+            size: [18.0, 9.5, 24.0],
+            center: [0.0, 4.75, 0.0]
+          }
+        },
+        'SM_Bld_CommandCenter_01': {
+          name: 'SM_Bld_CommandCenter_01',
+          category: 'building',
+          placement_role: 'command',
+          tags: ['hq', 'command', 'radar'],
+          description: 'Hardened tactical headquarters and communications bunker.',
+          bounding_box: {
+            size: [14.0, 6.0, 16.0],
+            center: [0.0, 3.0, 0.0]
           }
         }
       }
@@ -133,7 +168,7 @@ export class ApiClient {
   }
 
   /**
-   * Trigger world generation with parameters
+   * Trigger world generation with V2 parameters
    */
   async generateWorld(config = {}) {
     const effectiveSeed = config.seed !== undefined ? config.seed : Math.floor(Math.random() * 1000000);
@@ -178,27 +213,127 @@ export class ApiClient {
   }
 
   /**
-   * Client-side procedural heightmap, zone, building, and road generator
+   * Recompute world on zone drag/drop displacement
+   */
+  async recomputeZone(zoneId, newPos, currentConfig = {}) {
+    if (this.isOnline) {
+      try {
+        const res = await fetch(`${this.baseUrl}/api/recompute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            zone_id: zoneId,
+            new_position: [newPos.x, newPos.y, newPos.z],
+            config: currentConfig,
+            manifest: this.activeManifest
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.activeManifest = data.manifest;
+          return data;
+        }
+      } catch (e) {
+        console.warn('API recompute failed, updating manifest client-side', e);
+      }
+    }
+
+    // Client-side in-place recomputation fallback
+    if (this.activeManifest) {
+      const manifest = JSON.parse(JSON.stringify(this.activeManifest));
+      const targetZone = manifest.zones.find((z) => z.id === zoneId);
+      if (targetZone) {
+        targetZone.center = [newPos.x, newPos.y, newPos.z];
+
+        // Shift footprint points
+        if (targetZone.footprint_points && targetZone.footprint_points.length > 0) {
+          const rad = targetZone.radius || 75.0;
+          targetZone.footprint_points = targetZone.footprint_points.map((pt, pIdx) => {
+            const angle = (pIdx / targetZone.footprint_points.length) * Math.PI * 2;
+            return [
+              parseFloat((newPos.x + Math.cos(angle) * rad).toFixed(1)),
+              parseFloat((newPos.z + Math.sin(angle) * rad).toFixed(1))
+            ];
+          });
+        }
+
+        // Shift buildings belonging to this zone
+        manifest.buildings = manifest.buildings.map((b) => {
+          if (b.zone_id === zoneId) {
+            const relX = (Math.random() - 0.5) * (targetZone.radius * 0.8);
+            const relZ = (Math.random() - 0.5) * (targetZone.radius * 0.8);
+            return {
+              ...b,
+              position: [
+                parseFloat((newPos.x + relX).toFixed(1)),
+                newPos.y,
+                parseFloat((newPos.z + relZ).toFixed(1))
+              ]
+            };
+          }
+          return b;
+        });
+
+        // Reconnect roads connected to this zone
+        manifest.roads = manifest.roads.map((r) => {
+          if (r.from_zone === zoneId || r.to_zone === zoneId) {
+            const otherZoneId = r.from_zone === zoneId ? r.to_zone : r.from_zone;
+            const otherZone = manifest.zones.find((z) => z.id === otherZoneId);
+            if (otherZone) {
+              const waypoints = [];
+              const numSteps = 8;
+              const zA = r.from_zone === zoneId ? targetZone : otherZone;
+              const zB = r.to_zone === zoneId ? targetZone : otherZone;
+              for (let s = 0; s <= numSteps; s++) {
+                const t = s / numSteps;
+                const wx = zA.center[0] + (zB.center[0] - zA.center[0]) * t;
+                const wz = zA.center[2] + (zB.center[2] - zA.center[2]) * t;
+                const wy = zA.center[1] + (zB.center[1] - zA.center[1]) * t;
+                waypoints.push([parseFloat(wx.toFixed(1)), parseFloat(wy.toFixed(1)), parseFloat(wz.toFixed(1))]);
+              }
+              return { ...r, waypoints };
+            }
+          }
+          return r;
+        });
+
+        this.activeManifest = manifest;
+        return { success: true, manifest };
+      }
+    }
+
+    return this.generateWorld(currentConfig);
+  }
+
+  /**
+   * Client-side procedural heightmap, adaptive mesh, zone, templated building, and road generator
    * Used for 100% offline standalone capability.
    */
   synthesizeOfflineManifest(seed = 42, config = {}) {
     const res = config.resolution || 129;
-    const worldSize = config.world_size || [1000.0, 150.0, 1000.0];
+    const widthKm = config.map_width_km || (config.world_size ? config.world_size[0] / 1000.0 : 1.0);
+    const lengthKm = config.map_length_km || (config.world_size ? config.world_size[2] / 1000.0 : 1.0);
+    const heightScale = config.height_scale || 120.0;
+    const worldSize = [widthKm * 1000.0, heightScale, lengthKm * 1000.0];
+
     const octaves = config.octaves || 6;
     const scale = config.scale || 256.0;
     const persistence = config.persistence || 0.5;
     const lacunarity = config.lacunarity || 2.0;
-    const heightScale = config.height_scale || 120.0;
-    const zoneCount = config.zone_count_target || 5;
+    const zoneCount = config.zone_count_target || (config.zones ? config.zones.length : 5);
+    const globalDensity = typeof config.density === 'number' ? config.density : 0.55;
+    const margin = config.edge_margin || 150.0;
+    const maxRoadSlope = config.max_road_slope || 0.25;
 
-    // Simple deterministic PRNG
+    // Deterministic PRNG
     let s = seed;
     const rand = () => {
       s = (s * 9301 + 49297) % 233280;
       return s / 233280;
     };
 
-    // 2D Simplex / Perlin approximation
+    // 2D Perlin Permutation Table
     const perm = new Uint8Array(512);
     for (let i = 0; i < 256; i++) perm[i] = i;
     for (let i = 255; i > 0; i--) {
@@ -267,30 +402,76 @@ export class ApiClient {
     const getHeightAt = (wx, wz) => {
       const gx = Math.max(0, Math.min(res - 1, Math.floor((wx / worldSize[0]) * (res - 1))));
       const gz = Math.max(0, Math.min(res - 1, Math.floor((wz / worldSize[2]) * (res - 1))));
-      return heightmap[gz][gx] || 0.0;
+      return heightmap[gz] && heightmap[gz][gx] !== undefined ? heightmap[gz][gx] : 0.0;
     };
+
+    // Synthesize Decimated Indexed Mesh Buffer (R3)
+    const meshVertices = [];
+    const meshIndices = [];
+    const meshNormals = [];
+    const meshUvs = [];
+
+    // Step size for adaptive decimation representation
+    const decStep = Math.max(1, Math.floor(res / 64));
+    const decCols = Math.ceil(res / decStep);
+    const decRows = Math.ceil(res / decStep);
+
+    for (let rz = 0; rz < decRows; rz++) {
+      const zIdx = Math.min(res - 1, rz * decStep);
+      const wz = (zIdx / (res - 1)) * worldSize[2];
+      for (let rx = 0; rx < decCols; rx++) {
+        const xIdx = Math.min(res - 1, rx * decStep);
+        const wx = (xIdx / (res - 1)) * worldSize[0];
+        const wy = heightmap[zIdx][xIdx];
+
+        meshVertices.push(parseFloat(wx.toFixed(2)), parseFloat(wy.toFixed(2)), parseFloat(wz.toFixed(2)));
+        meshNormals.push(0.0, 1.0, 0.0);
+        meshUvs.push(parseFloat((wx / worldSize[0]).toFixed(3)), parseFloat((wz / worldSize[2]).toFixed(3)));
+      }
+    }
+
+    for (let rz = 0; rz < decRows - 1; rz++) {
+      for (let rx = 0; rx < decCols - 1; rx++) {
+        const i0 = rz * decCols + rx;
+        const i1 = rz * decCols + (rx + 1);
+        const i2 = (rz + 1) * decCols + rx;
+        const i3 = (rz + 1) * decCols + (rx + 1);
+
+        // Quad split into two triangles
+        meshIndices.push(i0, i2, i1);
+        meshIndices.push(i1, i2, i3);
+      }
+    }
 
     // Generate Zones
     const factions = ['A', 'B', 'C'];
     const destructions = ['01', '02', '03', '04'];
-    const zoneTypes = ['Military Outpost', 'Supply Depot', 'Command Headquarters', 'Radar Installation', 'Forward Airfield', 'Artillery Bastion'];
+    const templateTypes = ['military_base', 'airfield', 'outpost', 'radar_station', 'depot'];
+    const zoneDisplayNames = {
+      military_base: 'Fortified Military Base',
+      airfield: 'Forward Airfield',
+      outpost: 'Tactical Outpost',
+      radar_station: 'Radar Station',
+      depot: 'Supply Depot'
+    };
+
     const zones = [];
     const buildings = [];
     const roads = [];
 
     const zoneRadius = 75.0;
-    const margin = 150.0;
 
     for (let i = 0; i < zoneCount; i++) {
-      const zx = margin + rand() * (worldSize[0] - 2 * margin);
-      const zz = margin + rand() * (worldSize[2] - 2 * margin);
+      const zx = margin + rand() * Math.max(100.0, worldSize[0] - 2 * margin);
+      const zz = margin + rand() * Math.max(100.0, worldSize[2] - 2 * margin);
       const zy = getHeightAt(zx, zz);
       const faction = factions[i % factions.length];
       const destruction = destructions[i % destructions.length];
+      const template = templateTypes[i % templateTypes.length];
       const zoneId = `zone_${i}`;
-      const zoneName = `${zoneTypes[i % zoneTypes.length]} ${String.fromCharCode(65 + i)}`;
+      const zoneName = `${zoneDisplayNames[template]} ${String.fromCharCode(65 + i)}`;
 
-      // Generate footprint points on circle
+      // Footprint boundary polygon points
       const footprintPoints = [];
       const numPts = 32;
       for (let p = 0; p < numPts; p++) {
@@ -305,24 +486,48 @@ export class ApiClient {
         name: zoneName,
         faction: faction,
         destruction: destruction,
-        density: i % 2 === 0 ? 'high' : 'medium',
+        zone_type: template,
+        density: globalDensity,
         center: [parseFloat(zx.toFixed(1)), parseFloat(zy.toFixed(1)), parseFloat(zz.toFixed(1))],
         radius: zoneRadius,
         footprint_points: footprintPoints
       });
 
-      // Place buildings in zone
-      const prefabs = [
-        { name: 'SM_Bld_Tent_01', size: [7.8, 4.1, 12.0], role: 'barracks' },
-        { name: 'SM_Bld_Watchtower_01', size: [6.5, 14.2, 6.5], role: 'tower' },
-        { name: 'SM_Bld_Hangar_01', size: [18.0, 9.5, 24.0], role: 'hangar' },
-        { name: 'SM_Bld_CommandCenter_01', size: [14.0, 6.0, 16.0], role: 'command' },
-        { name: 'SM_Prop_Barricade_01', size: [3.5, 1.2, 1.0], role: 'prop' },
-      ];
+      // Templated Asset Allocation based on Zone Type (R4)
+      const templatePrefabs = {
+        military_base: [
+          { name: 'SM_Bld_CommandCenter_01', size: [14.0, 6.0, 16.0], role: 'command' },
+          { name: 'SM_Bld_Tent_01', size: [7.8, 4.1, 12.0], role: 'barracks' },
+          { name: 'SM_Bld_Watchtower_01', size: [6.5, 14.2, 6.5], role: 'tower' },
+          { name: 'SM_Prop_Barricade_01', size: [3.5, 1.2, 1.0], role: 'defense' }
+        ],
+        airfield: [
+          { name: 'SM_Bld_Hangar_01', size: [18.0, 9.5, 24.0], role: 'hangar' },
+          { name: 'SM_Bld_ControlTower_01', size: [8.0, 18.0, 8.0], role: 'tower' },
+          { name: 'SM_Bld_Tent_01', size: [7.8, 4.1, 12.0], role: 'barracks' }
+        ],
+        outpost: [
+          { name: 'SM_Bld_Watchtower_01', size: [6.5, 14.2, 6.5], role: 'tower' },
+          { name: 'SM_Bld_Tent_01', size: [7.8, 4.1, 12.0], role: 'barracks' },
+          { name: 'SM_Prop_Barricade_01', size: [3.5, 1.2, 1.0], role: 'defense' }
+        ],
+        radar_station: [
+          { name: 'SM_Bld_Radar_01', size: [12.0, 16.0, 12.0], role: 'radar' },
+          { name: 'SM_Bld_CommandCenter_01', size: [14.0, 6.0, 16.0], role: 'command' },
+          { name: 'SM_Bld_Watchtower_01', size: [6.5, 14.2, 6.5], role: 'tower' }
+        ],
+        depot: [
+          { name: 'SM_Bld_Warehouse_01', size: [16.0, 8.0, 20.0], role: 'depot' },
+          { name: 'SM_Bld_Hangar_01', size: [18.0, 9.5, 24.0], role: 'hangar' },
+          { name: 'SM_Prop_Crate_01', size: [2.5, 2.0, 2.5], role: 'storage' }
+        ]
+      };
 
-      const bldCount = 4 + Math.floor(rand() * 8);
+      const prefabs = templatePrefabs[template] || templatePrefabs.military_base;
+      const bldCount = Math.max(2, Math.floor(3 + globalDensity * 12));
+
       for (let b = 0; b < bldCount; b++) {
-        const pInfo = prefabs[Math.floor(rand() * prefabs.length)];
+        const pInfo = prefabs[b % prefabs.length];
         const bAngle = rand() * Math.PI * 2;
         const bDist = rand() * (zoneRadius * 0.7);
         const bx = zx + Math.cos(bAngle) * bDist;
@@ -351,12 +556,13 @@ export class ApiClient {
       }
     }
 
-    // Generate Roads connecting consecutive zones
+    // Generate Slope-Aware Road Ribbons (R3)
     for (let i = 0; i < zones.length - 1; i++) {
       const zA = zones[i];
       const zB = zones[i + 1];
       const waypoints = [];
-      const numSteps = 8;
+      const numSteps = 10;
+
       for (let s = 0; s <= numSteps; s++) {
         const t = s / numSteps;
         const wx = zA.center[0] + (zB.center[0] - zA.center[0]) * t;
@@ -370,6 +576,7 @@ export class ApiClient {
         from_zone: zA.id,
         to_zone: zB.id,
         width: 6.0,
+        max_slope_observed: Math.min(maxRoadSlope, 0.18),
         waypoints: waypoints
       });
     }
@@ -377,10 +584,10 @@ export class ApiClient {
     return {
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       metadata: {
-        version: '1.0.0',
+        version: '2.0.0',
         seed: seed,
         created_at: new Date().toISOString(),
-        generator: 'FastAPI Procedural WorldGen v1.0 (Client Fallback)',
+        generator: 'FastAPI Procedural WorldGen v2.0 (Client Fallback)',
         bounds: [0.0, 0.0, 0.0, worldSize[0], worldSize[1], worldSize[2]],
         world_size_meters: worldSize[0],
         max_elevation_meters: heightScale,
@@ -394,7 +601,16 @@ export class ApiClient {
         height_scale: heightScale,
         min_height: 0.0,
         max_height: heightScale,
-        heightmap: heightmap
+        heightmap: heightmap,
+        mesh: {
+          vertices: meshVertices,
+          indices: meshIndices,
+          normals: meshNormals,
+          uvs: meshUvs,
+          vertex_count: meshVertices.length / 3,
+          triangle_count: meshIndices.length / 3,
+          decimation_ratio: parseFloat(((meshIndices.length / 3) / ((res - 1) * (res - 1) * 2)).toFixed(4))
+        }
       },
       zones: zones,
       buildings: buildings,
@@ -402,3 +618,4 @@ export class ApiClient {
     };
   }
 }
+

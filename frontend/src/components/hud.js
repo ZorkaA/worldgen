@@ -292,7 +292,7 @@ export class HudController {
   /**
    * Show/Hide Full Screen Generation Radar Overlay
    */
-  setGenerating(isGenerating, title = 'Generating World...', desc = 'Synthesizing terrain & placing structures') {
+  setGenerating(isGenerating, title = 'Generating World...', desc = 'Computing terrain & placing structures') {
     if (!this.spinnerOverlay) return;
     if (isGenerating) {
       this.spinnerTitle.textContent = title;

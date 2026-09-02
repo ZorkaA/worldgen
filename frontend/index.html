@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <title>WorldGen 3D — Procedural Military World Designer</title>
+  <title>WorldGen — 3D Terrain & Zone Infrastructure Editor</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body class="theme-tactical-dark">
@@ -16,8 +16,8 @@
           <polygon points="12 2 22 20 2 20" stroke-linejoin="round"/>
           <circle cx="12" cy="14" r="3" fill="currentColor"/>
         </svg>
-        <span class="brand-title">WORLDGEN <span class="brand-badge">3D</span></span>
-        <span class="brand-subtitle">Procedural Military Designer</span>
+        <span class="brand-title">WORLDGEN <span class="brand-badge">V2</span></span>
+        <span class="brand-subtitle">Terrain & Zone Infrastructure Editor</span>
       </div>
 
       <div class="nav-center">
@@ -62,7 +62,7 @@
         <div class="panel-header">
           <div class="panel-tabs" role="tablist">
             <button type="button" role="tab" aria-selected="true" class="tab-btn active" id="tab-terrain" data-target="panel-terrain-content">Terrain Config</button>
-            <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-zones" data-target="panel-zones-content">Zone Config</button>
+            <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-zones" data-target="panel-zones-content">Zone Editor</button>
           </div>
         </div>
 
@@ -124,7 +124,7 @@
                 <div class="radar-ring inner"></div>
               </div>
               <h3 id="spinner-title">Generating World...</h3>
-              <p id="spinner-desc">Synthesizing multifractal terrain, Poisson zones & SAT buildings</p>
+              <p id="spinner-desc">Computing terrain, adaptive mesh, zone templates & road network</p>
             </div>
           </div>
         </div>
@@ -207,3 +207,4 @@
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
+

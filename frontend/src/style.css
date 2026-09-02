@@ -522,11 +522,51 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.zone-rename-input {
+  flex: 1;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 3px 6px;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.zone-rename-input:focus {
+  border-color: var(--color-primary);
+  background: rgba(2, 6, 23, 0.95);
+  box-shadow: 0 0 0 1px var(--color-primary-glow);
 }
 
 .zone-name {
   font-weight: 600;
   font-size: 12px;
+}
+
+.btn-delete-zone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-zone:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
 }
 
 .zone-faction-badge {
@@ -562,6 +602,7 @@ html, body {
   font-size: 10px;
   color: var(--text-muted);
 }
+
 
 .btn-small {
   padding: 2px 8px;

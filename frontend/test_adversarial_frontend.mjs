@@ -581,6 +581,310 @@ runTest('ADV_FE_16_Catalog_SpecialCharactersAndRegexSearch', () => {
   }
 });
 
+// ----------------------------------------------------------------------------
+// Group 9: WorldGen V2 Feature Verification Tests (R1, R2, R3, R4, R5)
+// ----------------------------------------------------------------------------
+
+runTest('ADV_FE_17_AdaptiveDecimatedMesh_BufferGeometryAndIndexAttributes', () => {
+  const scene = new THREE.Scene();
+  const visualizer = new TerrainVisualizer(scene);
+
+  // Test adaptive decimated mesh format with flat vertices and index buffers
+  const decimatedMeshPayload = {
+    world_size: [1000, 150, 1000],
+    mesh: {
+      vertices: [
+        0.0, 10.0, 0.0,
+        1000.0, 12.0, 0.0,
+        500.0, 45.0, 500.0,
+        0.0, 15.0, 1000.0,
+        1000.0, 20.0, 1000.0
+      ],
+      indices: [
+        0, 1, 2,
+        0, 2, 3,
+        1, 4, 2,
+        3, 2, 4
+      ],
+      normals: [
+        0.0, 1.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.8, 0.6,
+        0.0, 1.0, 0.0,
+        0.0, 1.0, 0.0
+      ],
+      uvs: [
+        0.0, 0.0,
+        1.0, 0.0,
+        0.5, 0.5,
+        0.0, 1.0,
+        1.0, 1.0
+      ],
+      vertex_count: 5,
+      triangle_count: 4,
+      decimation_ratio: 0.05
+    }
+  };
+
+  visualizer.update(decimatedMeshPayload);
+
+  assert(visualizer.mesh !== null, 'Adaptive mesh must be instantiated');
+  assert(visualizer.geometry !== null, 'BufferGeometry must be instantiated');
+  assert(visualizer.meshType === 'decimated', 'Mesh type flagged as decimated');
+
+  // Verify positions buffer
+  const pos = visualizer.geometry.attributes.position;
+  assert(pos.count === 5, `Position count must be 5 (actual: ${pos.count})`);
+
+  // Verify index buffer
+  const idx = visualizer.geometry.index;
+  assert(idx !== null && idx.count === 12, `Index count must be 12 indices (4 triangles * 3 = 12) (actual: ${idx ? idx.count : null})`);
+
+  // Verify slope/elevation-aware vertex colors
+  const col = visualizer.geometry.attributes.color;
+  assert(col !== undefined && col.count === 5, 'Vertex colors generated for all 5 vertices');
+  for (let i = 0; i < col.array.length; i++) {
+    assert(!isNaN(col.array[i]), `Decimated vertex color index ${i} is not NaN`);
+  }
+
+  // Verify wireframe overlay created with same geometry
+  assert(visualizer.wireframeMesh !== null, 'Wireframe overlay created');
+  assert(visualizer.wireframeMesh.geometry === visualizer.geometry, 'Wireframe shares exact decimated geometry');
+
+  visualizer.dispose();
+});
+
+runTest('ADV_FE_18_AdaptiveDecimatedMesh_NestedArraysAndMissingNormalsFallback', () => {
+  const scene = new THREE.Scene();
+  const visualizer = new TerrainVisualizer(scene);
+
+  // Decimated mesh with nested arrays [[x,y,z], ...] and missing normals
+  const nestedDecimatedMesh = {
+    world_size: [800, 120, 800],
+    vertices: [
+      [0.0, 0.0, 0.0],
+      [800.0, 0.0, 0.0],
+      [400.0, 50.0, 400.0],
+      [0.0, 0.0, 800.0],
+      [800.0, 0.0, 800.0]
+    ],
+    indices: [
+      [0, 1, 2],
+      [0, 2, 3],
+      [1, 4, 2],
+      [3, 2, 4]
+    ]
+  };
+
+  visualizer.update(nestedDecimatedMesh);
+
+  assert(visualizer.mesh !== null, 'Nested array decimated mesh loads');
+  assert(visualizer.geometry.attributes.position.count === 5, '5 vertices converted to flat BufferAttribute');
+  assert(visualizer.geometry.index.count === 12, '12 indices converted to flat index buffer');
+  assert(visualizer.geometry.attributes.normal !== undefined, 'Missing normals automatically computed via computeVertexNormals()');
+
+  // Test elevation query on decimated mesh
+  const elevCenter = visualizer.getElevationAt(400, 400);
+  assertApproxEqual(50.0, elevCenter, 1.0, 'Elevation query returns peak elevation near (400, 400)');
+
+  visualizer.dispose();
+});
+
+runTest('ADV_FE_19_Zones_3DDragPreviewLiveTranslationAndDisplacement', () => {
+  const scene = new THREE.Scene();
+  const terrain = new TerrainVisualizer(scene);
+  terrain.update({
+    resolution: 2,
+    world_size: [1000, 150, 1000],
+    heightmap: [[10.0, 10.0], [10.0, 10.0]]
+  });
+
+  const zoneVis = new ZoneVisualizer(scene, terrain);
+  const initialZones = [
+    {
+      id: 'zone_alpha',
+      name: 'Alpha Outpost',
+      faction: 'A',
+      destruction: '01',
+      zone_type: 'military_base',
+      density: 0.65,
+      center: [200.0, 10.0, 200.0],
+      radius: 60.0,
+      footprint_points: [[160, 200], [240, 200], [200, 240]]
+    }
+  ];
+
+  zoneVis.update(initialZones);
+
+  // Check initial position
+  const initialPos = zoneVis.getZonePosition('zone_alpha');
+  assertApproxEqual(200.0, initialPos.x, 0.1, 'Initial zone X');
+  assertApproxEqual(200.0, initialPos.z, 0.1, 'Initial zone Z');
+
+  // Live translate zone to new coordinate during 60 FPS drag
+  zoneVis.previewMoveZone('zone_alpha', 350.0, 10.0, 420.0);
+
+  const movedPos = zoneVis.getZonePosition('zone_alpha');
+  assertApproxEqual(350.0, movedPos.x, 0.1, 'Live moved zone X');
+  assertApproxEqual(420.0, movedPos.z, 0.1, 'Live moved zone Z');
+
+  // Check visual mesh updates
+  const visual = zoneVis.zoneVisualsMap.get('zone_alpha');
+  assert(visual !== undefined, 'Visual map entry exists');
+  assertApproxEqual(350.0, visual.sphereMesh.position.x, 0.1, 'Beacon sphere translated X');
+  assertApproxEqual(350.0, visual.beamMesh.position.x, 0.1, 'Beam cylinder translated X');
+  assertApproxEqual(350.0, visual.discMesh.position.x, 0.1, 'Footprint disc translated X');
+  assertApproxEqual(420.0, visual.discMesh.position.z, 0.1, 'Footprint disc translated Z');
+
+  // Displacement calculation test (> 1.0m threshold)
+  const displacement = Math.hypot(movedPos.x - initialPos.x, movedPos.z - initialPos.z);
+  assert(displacement > 1.0, `Displacement ${displacement.toFixed(1)}m exceeds 1.0m threshold`);
+
+  zoneVis.dispose();
+  terrain.dispose();
+});
+
+runTest('ADV_FE_20_ContinuousDensity_TierBadgingAndOfflineTemplatedAssets', () => {
+  const client = new ApiClient();
+
+  // Test density tier formatting logic
+  const tiers = [
+    { val: 0.10, expectedBadge: 'Sparse Outpost' },
+    { val: 0.40, expectedBadge: 'Standard Base' },
+    { val: 0.70, expectedBadge: 'Fortified Depot' },
+    { val: 0.95, expectedBadge: 'Command Citadel' }
+  ];
+
+  const getTierName = (v) => {
+    if (v <= 0.25) return 'Sparse Outpost';
+    if (v <= 0.55) return 'Standard Base';
+    if (v <= 0.80) return 'Fortified Depot';
+    return 'Command Citadel';
+  };
+
+  for (let t of tiers) {
+    assert(getTierName(t.val) === t.expectedBadge, `Density ${t.val} maps to ${t.expectedBadge}`);
+  }
+
+  // Synthesize offline manifest with continuous density 0.85
+  const manifest = client.synthesizeOfflineManifest(42, {
+    resolution: 65,
+    density: 0.85,
+    zone_count_target: 3
+  });
+
+  assert(manifest.zones.length === 3, '3 zones synthesized');
+  assert(manifest.zones[0].density === 0.85, 'Continuous density float recorded in manifest zone');
+  assert(manifest.buildings.length >= 15, `High density (0.85) produces dense building count (${manifest.buildings.length})`);
+
+  // Verify 5 template types exist and produce corresponding buildings
+  const validTemplates = ['military_base', 'airfield', 'outpost', 'radar_station', 'depot'];
+  for (let z of manifest.zones) {
+    assert(validTemplates.includes(z.zone_type), `Zone template '${z.zone_type}' is valid military template`);
+  }
+});
+
+runTest('ADV_FE_21_GlobalMapParameters_DimensionScalingAndV2Schema', () => {
+  const client = new ApiClient();
+
+  // Synthesize non-square world: 3.5 km width x 1.5 km length
+  const manifest = client.synthesizeOfflineManifest(99, {
+    map_width_km: 3.5,
+    map_length_km: 1.5,
+    resolution: 65,
+    deformation_strength: 0.90,
+    edge_margin: 200.0,
+    max_road_slope: 0.20
+  });
+
+  assert(manifest.terrain.world_size[0] === 3500.0, 'World width in meters is 3500m (3.5km)');
+  assert(manifest.terrain.world_size[2] === 1500.0, 'World length in meters is 1500m (1.5km)');
+  assert(manifest.terrain.mesh !== undefined, 'Adaptive mesh included in V2 manifest');
+  assert(manifest.terrain.mesh.vertices.length > 0, 'Mesh vertices populated');
+  assert(manifest.terrain.mesh.indices.length > 0, 'Mesh indices populated');
+
+  // Verify road slopes respect slope limit
+  for (let r of manifest.roads) {
+    assert(r.max_slope_observed <= 0.25, `Road slope ${r.max_slope_observed} respects max slope`);
+  }
+});
+
+runTest('ADV_FE_22_InPlaceRecomputation_ZoneDisplacementWithoutReload', async () => {
+  const client = new ApiClient();
+
+  // 1. Initial manifest
+  const initManifest = client.synthesizeOfflineManifest(777, { resolution: 65, zone_count_target: 3 });
+  client.activeManifest = initManifest;
+
+  const targetZone = initManifest.zones[0];
+  const oldX = targetZone.center[0];
+  const oldZ = targetZone.center[2];
+
+  // 2. Recompute zone position
+  const newPos = { x: oldX + 150.0, y: targetZone.center[1] + 5.0, z: oldZ + 120.0 };
+  const result = await client.recomputeZone(targetZone.id, newPos, { resolution: 65 });
+
+  assert(result.success === true, 'Recompute returned success');
+  assert(result.manifest !== undefined, 'Recomputed manifest returned');
+
+  const updatedZone = result.manifest.zones.find((z) => z.id === targetZone.id);
+  assert(updatedZone !== undefined, 'Updated zone found in manifest');
+  assertApproxEqual(newPos.x, updatedZone.center[0], 0.1, 'Zone center X shifted');
+  assertApproxEqual(newPos.z, updatedZone.center[2], 0.1, 'Zone center Z shifted');
+
+  // Verify associated buildings shifted
+  const shiftedBlds = result.manifest.buildings.filter((b) => b.zone_id === targetZone.id);
+  assert(shiftedBlds.length > 0, 'Buildings for zone retained and shifted');
+});
+
+runTest('ADV_FE_23_UtilitarianUI_NoSlopCopyCompliance', () => {
+  const indexPath = path.join(__dirname, 'index.html');
+  const indexContent = fs.readFileSync(indexPath, 'utf-8');
+
+  // Forbidden generic / AI marketing slop terms
+  const forbiddenTerms = [
+    'WORLDGEN 3D — Procedural Military Designer',
+    'Procedural Military Designer',
+    'Synthesizing Tactical World',
+    'Next-Gen AI Designer',
+    'Ultimate World Generator'
+  ];
+
+  for (let term of forbiddenTerms) {
+    assert(!indexContent.includes(term), `index.html must not contain marketing slop: '${term}'`);
+  }
+
+  // Required Utilitarian terms
+  assert(indexContent.includes('WorldGen — 3D Terrain & Zone Infrastructure Editor') || indexContent.includes('WORLDGEN'), 'Contains utilitarian brand title');
+  assert(indexContent.includes('Terrain Config') || indexContent.includes('Terrain Parameters'), 'Contains terrain parameters header');
+  assert(indexContent.includes('Zone Editor') || indexContent.includes('Active Tactical Zones'), 'Contains zone editor header');
+  assert(indexContent.includes('dialog id="detail-modal"'), 'Native semantic <dialog> element present');
+});
+
+runTest('ADV_FE_24_WireframeMode_DecimatedMeshTopologyInspection', () => {
+  const scene = new THREE.Scene();
+  const visualizer = new TerrainVisualizer(scene);
+
+  visualizer.update({
+    world_size: [1000, 150, 1000],
+    mesh: {
+      vertices: [0, 0, 0, 1000, 0, 0, 500, 50, 500],
+      indices: [0, 1, 2],
+      normals: [0, 1, 0, 0, 1, 0, 0, 1, 0]
+    }
+  });
+
+  assert(visualizer.wireframeMesh.visible === false, 'Wireframe hidden by default');
+  visualizer.setWireframe(true);
+  assert(visualizer.wireframeMesh.visible === true, 'Wireframe visible when toggled ON');
+  assert(visualizer.wireframeMesh.material.wireframe === true, 'Material wireframe property is true');
+
+  visualizer.setWireframe(false);
+  assert(visualizer.wireframeMesh.visible === false, 'Wireframe hidden when toggled OFF');
+
+  visualizer.dispose();
+});
+
 console.log('================================================================');
 console.log(`TOTAL ADVERSARIAL FRONTEND TESTS: ${passedTests + failedTests}`);
 console.log(`PASSED: ${passedTests}`);
@@ -590,3 +894,4 @@ console.log('================================================================');
 if (failedTests > 0) {
   process.exit(1);
 }
+

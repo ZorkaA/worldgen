@@ -8,7 +8,8 @@ import { RoadVisualizer } from './roads.js';
 /**
  * Main 3D WebGL World Viewer
  * Orchestrates Three.js Scene, WebGLRenderer, PerspectiveCamera, OrbitControls,
- * Directional & Ambient Lighting, Subsystem Visualizers, Raycasting, and Camera Presets.
+ * Directional & Ambient Lighting, Subsystem Visualizers, Raycasting, Camera Presets,
+ * and 3D Viewport Raycast Drag Controls for Zone Center Beacons.
  */
 export class WorldViewer {
   constructor(canvasElement, options = {}) {
@@ -32,6 +33,7 @@ export class WorldViewer {
     this.animationFrameId = null;
     this.clock = new THREE.Clock();
     this.worldBounds = [1000, 150, 1000];
+    this.edgeMargin = 50.0;
     this.currentManifest = null;
 
     // Raycasting & Interaction
@@ -40,6 +42,13 @@ export class WorldViewer {
     this.hoveredObject = null;
     this.onHoverCallback = options.onHover || null;
     this.onClickCallback = options.onClick || null;
+
+    // 3D Drag-and-Drop State for Zone Beacons
+    this.isDraggingZone = false;
+    this.draggedZoneId = null;
+    this.dragStartPos = null;
+    this.onZoneDroppedCallback = options.onZoneDropped || null;
+    this.onZoneDragMoveCallback = options.onZoneDragMove || null;
 
     // Camera Animation Transition
     this.targetCamPos = null;
@@ -63,7 +72,7 @@ export class WorldViewer {
 
     // 2. Create Camera
     const aspect = this.canvas.clientWidth / (this.canvas.clientHeight || 1);
-    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.5, 5000);
+    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.5, 6000);
     this.camera.position.set(500, 450, 950);
 
     // 3. Create WebGLRenderer
@@ -86,7 +95,7 @@ export class WorldViewer {
     this.controls.dampingFactor = 0.05;
     this.controls.maxPolarAngle = Math.PI / 2.05; // Prevents camera dipping under terrain
     this.controls.minDistance = 10;
-    this.controls.maxDistance = 3500;
+    this.controls.maxDistance = 5000;
     this.controls.target.set(500, 20, 500);
 
     // 5. Lighting Setup
@@ -100,7 +109,10 @@ export class WorldViewer {
 
     // 7. Event Listeners
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    this.canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
     this.canvas.addEventListener('pointermove', this.onPointerMove.bind(this));
+    window.addEventListener('pointerup', this.onPointerUp.bind(this));
+    window.addEventListener('pointercancel', this.onPointerUp.bind(this));
     this.canvas.addEventListener('click', this.onCanvasClick.bind(this));
 
     // 8. Start Render Loop
@@ -115,11 +127,11 @@ export class WorldViewer {
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
     this.sunLight.shadow.camera.near = 10;
-    this.sunLight.shadow.camera.far = 2500;
-    this.sunLight.shadow.camera.left = -700;
-    this.sunLight.shadow.camera.right = 700;
-    this.sunLight.shadow.camera.top = 700;
-    this.sunLight.shadow.camera.bottom = -700;
+    this.sunLight.shadow.camera.far = 3500;
+    this.sunLight.shadow.camera.left = -750;
+    this.sunLight.shadow.camera.right = 750;
+    this.sunLight.shadow.camera.top = 750;
+    this.sunLight.shadow.camera.bottom = -750;
     this.sunLight.shadow.bias = -0.0003;
     this.scene.add(this.sunLight);
 
@@ -144,10 +156,20 @@ export class WorldViewer {
       this.worldBounds = manifest.terrain.world_size || [1000, 150, 1000];
       this.terrain.update(manifest.terrain);
 
-      // Adjust sun and camera bounds
-      const [w, , l] = this.worldBounds;
-      this.sunLight.position.set(w * 0.5, 600, l * 0.8);
-      this.controls.target.set(w / 2, 20, l / 2);
+      // Dynamically scale sun light position, shadow camera frustum, and orbit controls target
+      const [w, h, l] = this.worldBounds;
+      const maxDim = Math.max(w, l);
+
+      this.sunLight.position.set(w * 0.5, maxDim * 0.6 + 250, l * 0.8);
+      this.sunLight.shadow.camera.left = -maxDim * 0.75;
+      this.sunLight.shadow.camera.right = maxDim * 0.75;
+      this.sunLight.shadow.camera.top = maxDim * 0.75;
+      this.sunLight.shadow.camera.bottom = -maxDim * 0.75;
+      this.sunLight.shadow.camera.far = maxDim * 3.0 + 1000;
+      this.sunLight.shadow.camera.updateProjectionMatrix();
+
+      this.controls.target.set(w / 2, Math.min(h, 40) * 0.5, l / 2);
+      this.controls.maxDistance = maxDim * 4.0;
     }
 
     if (manifest.zones) {
@@ -179,20 +201,21 @@ export class WorldViewer {
     const [w, h, l] = this.worldBounds;
     const cx = w / 2;
     const cz = l / 2;
+    const maxDim = Math.max(w, l);
 
     if (presetName === 'orbit') {
       this.transitionCamera(
-        new THREE.Vector3(cx + 350, 380, cz + 450),
+        new THREE.Vector3(cx + maxDim * 0.4, maxDim * 0.4, cz + maxDim * 0.5),
         new THREE.Vector3(cx, 25, cz)
       );
     } else if (presetName === 'top') {
       this.transitionCamera(
-        new THREE.Vector3(cx, 1350, cz + 0.01),
+        new THREE.Vector3(cx, maxDim * 1.35, cz + 0.01),
         new THREE.Vector3(cx, 0, cz)
       );
     } else if (presetName === 'iso') {
       this.transitionCamera(
-        new THREE.Vector3(cx + 650, 550, cz + 650),
+        new THREE.Vector3(cx + maxDim * 0.65, maxDim * 0.55, cz + maxDim * 0.65),
         new THREE.Vector3(cx, 0, cz)
       );
     }
@@ -229,14 +252,78 @@ export class WorldViewer {
     this.renderer.setSize(width, height, false);
   }
 
-  onPointerMove(event) {
+  updateMouseCoordinates(event) {
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  }
 
-    // Raycast building & zone meshes
+  onPointerDown(event) {
+    // Only handle primary button (left-click) for dragging
+    if (event.button !== 0) return;
+
+    this.updateMouseCoordinates(event);
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const interactiveObjects = [...this.buildings.buildingMeshes, ...this.zones.beaconMeshes];
+
+    // Check intersection with draggable zone beacons / pins
+    if (this.zones && this.zones.beaconMeshes.length > 0) {
+      const zoneHits = this.raycaster.intersectObjects(this.zones.beaconMeshes, false);
+      if (zoneHits.length > 0) {
+        const hitObj = zoneHits[0].object;
+        const zoneId = hitObj.userData.zoneId || hitObj.userData.data?.id;
+
+        if (zoneId) {
+          this.isDraggingZone = true;
+          this.draggedZoneId = zoneId;
+          this.dragStartPos = this.zones.getZonePosition(zoneId);
+
+          // Disable OrbitControls and switch cursor to grabbing
+          this.controls.enabled = false;
+          this.canvas.style.cursor = 'grabbing';
+          return;
+        }
+      }
+    }
+  }
+
+  onPointerMove(event) {
+    this.updateMouseCoordinates(event);
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // 1. If currently dragging a zone center beacon:
+    if (this.isDraggingZone && this.draggedZoneId && this.terrain) {
+      this.canvas.style.cursor = 'grabbing';
+
+      // Raycast against terrain mesh
+      const terrainMesh = this.terrain.mesh;
+      if (terrainMesh) {
+        const intersects = this.raycaster.intersectObject(terrainMesh, false);
+        if (intersects.length > 0) {
+          const pt = intersects[0].point;
+          const [w, , l] = this.worldBounds;
+          const margin = this.edgeMargin || 40.0;
+
+          // Clamp within map bounds
+          const clampedX = Math.max(margin, Math.min(w - margin, pt.x));
+          const clampedZ = Math.max(margin, Math.min(l - margin, pt.z));
+          const clampedY = this.terrain.getElevationAt(clampedX, clampedZ);
+
+          // Live-translate zone visuals at 60 FPS
+          this.zones.previewMoveZone(this.draggedZoneId, clampedX, clampedY, clampedZ);
+
+          if (this.onZoneDragMoveCallback) {
+            this.onZoneDragMoveCallback(this.draggedZoneId, clampedX, clampedY, clampedZ);
+          }
+        }
+      }
+      return;
+    }
+
+    // 2. Normal Hover Raycasting against buildings & zone beacons
+    const interactiveObjects = [
+      ...(this.buildings ? this.buildings.buildingMeshes : []),
+      ...(this.zones ? this.zones.beaconMeshes : [])
+    ];
     const intersects = this.raycaster.intersectObjects(interactiveObjects, false);
 
     if (intersects.length > 0) {
@@ -244,7 +331,7 @@ export class WorldViewer {
       this.canvas.style.cursor = 'pointer';
       if (this.hoveredObject !== topHit) {
         this.hoveredObject = topHit;
-        if (topHit.userData.type === 'building') {
+        if (topHit.userData.type === 'building' && this.buildings) {
           this.buildings.setHighlight(topHit);
         }
         if (this.onHoverCallback) {
@@ -255,7 +342,9 @@ export class WorldViewer {
       this.canvas.style.cursor = 'default';
       if (this.hoveredObject) {
         this.hoveredObject = null;
-        this.buildings.setHighlight(null);
+        if (this.buildings) {
+          this.buildings.setHighlight(null);
+        }
         if (this.onHoverCallback) {
           this.onHoverCallback(null);
         }
@@ -263,8 +352,38 @@ export class WorldViewer {
     }
   }
 
+  onPointerUp(event) {
+    if (this.isDraggingZone) {
+      const zoneId = this.draggedZoneId;
+      const startPos = this.dragStartPos;
+
+      this.isDraggingZone = false;
+      this.draggedZoneId = null;
+      this.dragStartPos = null;
+
+      // Re-enable OrbitControls
+      this.controls.enabled = true;
+      this.canvas.style.cursor = 'default';
+
+      if (zoneId && startPos && this.zones) {
+        const finalPos = this.zones.getZonePosition(zoneId);
+        if (finalPos) {
+          const displacement = Math.hypot(finalPos.x - startPos.x, finalPos.z - startPos.z);
+
+          // If moved more than 1.0 meter, trigger recomputation callback
+          if (displacement > 1.0) {
+            if (this.onZoneDroppedCallback) {
+              this.onZoneDroppedCallback(zoneId, finalPos, displacement);
+            }
+          }
+        }
+      }
+    }
+  }
+
   onCanvasClick(event) {
-    if (this.hoveredObject && this.onClickCallback) {
+    // If not dragging, process click selection
+    if (!this.isDraggingZone && this.hoveredObject && this.onClickCallback) {
       this.onClickCallback(this.hoveredObject.userData);
     }
   }
@@ -320,6 +439,8 @@ export class WorldViewer {
   dispose() {
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
     window.removeEventListener('resize', this.onWindowResize);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
     if (this.terrain) this.terrain.dispose();
     if (this.zones) this.zones.dispose();
     if (this.buildings) this.buildings.dispose();
@@ -327,3 +448,4 @@ export class WorldViewer {
     if (this.renderer) this.renderer.dispose();
   }
 }
+
