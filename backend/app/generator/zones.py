@@ -146,17 +146,18 @@ def _sample_heightmap_bilinear(
 ) -> float:
     """Sample continuous world-space coordinate (x, z) from heightmap."""
     res_y, res_x = heightmap.shape
-    u = (world_x / world_width) * (res_x - 1)
-    v = (world_z / world_length) * (res_y - 1)
+    u = (world_x / max(1e-4, world_width)) * (res_x - 1)
+    v = (world_z / max(1e-4, world_length)) * (res_y - 1)
 
-    ix = int(math.floor(u))
-    iy = int(math.floor(v))
+    # Strictly clamp to grid boundary to eliminate extrapolation overshoot
+    u_clamped = max(0.0, min(float(res_x - 1), u))
+    v_clamped = max(0.0, min(float(res_y - 1), v))
 
-    ix = max(0, min(res_x - 2, ix))
-    iy = max(0, min(res_y - 2, iy))
+    ix = max(0, min(res_x - 2, int(math.floor(u_clamped))))
+    iy = max(0, min(res_y - 2, int(math.floor(v_clamped))))
 
-    fu = u - ix
-    fv = v - iy
+    fu = max(0.0, min(1.0, u_clamped - ix))
+    fv = max(0.0, min(1.0, v_clamped - iy))
 
     h00 = heightmap[iy, ix]
     h10 = heightmap[iy, ix + 1]

@@ -313,8 +313,6 @@ def _delaunay_triangulation_2d(points: List[Tuple[float, float]]) -> List[Tuple[
         return []
     if num_pts == 2:
         return [(0, 1)]
-    if num_pts == 3:
-        return [(0, 1), (1, 2), (0, 2)]
 
     pts = np.array(points, dtype=np.float64)
     try:
@@ -327,8 +325,16 @@ def _delaunay_triangulation_2d(points: List[Tuple[float, float]]) -> List[Tuple[
             edges.add((min(i2, i0), max(i2, i0)))
         return list(edges)
     except Exception:
-        # Fallback for collinear/degenerate point sets
-        return [(i, i + 1) for i in range(num_pts - 1)]
+        # Fallback for collinear/degenerate point sets: sort along principal coordinate
+        sorted_indices = sorted(range(num_pts), key=lambda i: (points[i][0], points[i][1]))
+        fallback_edges: List[Tuple[int, int]] = []
+        for i in range(num_pts - 1):
+            u, v = sorted_indices[i], sorted_indices[i + 1]
+            if u != v:
+                edge = (min(u, v), max(u, v))
+                if edge not in fallback_edges:
+                    fallback_edges.append(edge)
+        return fallback_edges if fallback_edges else ([(0, 1)] if num_pts >= 2 else [])
 
 
 def _generate_zone_edges(zones: List[Zone], seed: int = 42) -> List[Tuple[int, int]]:
