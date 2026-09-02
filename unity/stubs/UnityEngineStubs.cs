@@ -300,17 +300,69 @@ namespace UnityEngine
     public class MeshRenderer : Renderer { }
     public class SkinnedMeshRenderer : Renderer { }
 
+    public class MeshCollider : Component
+    {
+        public Mesh sharedMesh { get; set; }
+        public bool convex { get; set; } = false;
+        public bool isTrigger { get; set; } = false;
+    }
+
+    public class MonoBehaviour : Component { }
+
     public class Mesh : Object
     {
+        public UnityEngine.Rendering.IndexFormat indexFormat { get; set; } = UnityEngine.Rendering.IndexFormat.UInt16;
         public Vector3[] vertices { get; set; } = new Vector3[0];
         public int[] triangles { get; set; } = new int[0];
         public Vector3[] normals { get; set; } = new Vector3[0];
         public Vector2[] uv { get; set; } = new Vector2[0];
         public Vector4[] tangents { get; set; } = new Vector4[0];
-        public void RecalculateNormals() { }
-        public void RecalculateBounds() { }
+        public Bounds bounds { get; set; } = new Bounds(Vector3.zero, Vector3.zero);
+        public int vertexCount => vertices != null ? vertices.Length : 0;
+        public int subMeshCount { get; set; } = 1;
+
+        public void RecalculateNormals()
+        {
+            if (vertices == null || vertices.Length == 0) return;
+            if (normals == null || normals.Length != vertices.Length)
+                normals = new Vector3[vertices.Length];
+            for (int i = 0; i < normals.Length; i++)
+                normals[i] = Vector3.up;
+        }
+
+        public void RecalculateBounds()
+        {
+            if (vertices == null || vertices.Length == 0)
+            {
+                bounds = new Bounds(Vector3.zero, Vector3.zero);
+                return;
+            }
+            Vector3 min = vertices[0];
+            Vector3 max = vertices[0];
+            for (int i = 1; i < vertices.Length; i++)
+            {
+                Vector3 v = vertices[i];
+                if (v.x < min.x) min.x = v.x;
+                if (v.y < min.y) min.y = v.y;
+                if (v.z < min.z) min.z = v.z;
+                if (v.x > max.x) max.x = v.x;
+                if (v.y > max.y) max.y = v.y;
+                if (v.z > max.z) max.z = v.z;
+            }
+            Vector3 size = new Vector3(max.x - min.x, max.y - min.y, max.z - min.z);
+            Vector3 center = (min + max) * 0.5f;
+            bounds = new Bounds(center, size);
+        }
+
         public void RecalculateTangents() { }
-        public void Clear() { }
+        public void Clear()
+        {
+            vertices = new Vector3[0];
+            triangles = new int[0];
+            normals = new Vector3[0];
+            uv = new Vector2[0];
+            tangents = new Vector4[0];
+        }
     }
 
     public class MeshFilter : Component
@@ -349,5 +401,14 @@ namespace UnityEngine
         public static string dataPath => "/Assets";
         public static bool isPlaying => false;
         public static bool isEditor => true;
+    }
+}
+
+namespace UnityEngine.Rendering
+{
+    public enum IndexFormat
+    {
+        UInt16 = 0,
+        UInt32 = 1
     }
 }

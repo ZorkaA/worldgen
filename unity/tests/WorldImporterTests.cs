@@ -30,6 +30,12 @@ namespace WorldGen.Tests
             RunTest("TestPrefabSpawner_FallbackProxyDimensions", TestPrefabSpawner_FallbackProxyDimensions);
             RunTest("TestHierarchy_CleanStructureGeneration", TestHierarchy_CleanStructureGeneration);
             RunTest("TestEndToEnd_SampleManifestImport", TestEndToEnd_SampleManifestImport);
+            RunTest("TestAdaptiveMeshGenerator_VariableDensityMeshCreation", TestAdaptiveMeshGenerator_VariableDensityMeshCreation);
+            RunTest("TestAdaptiveMeshGenerator_32BitIndexBufferConfiguration", TestAdaptiveMeshGenerator_32BitIndexBufferConfiguration);
+            RunTest("TestJsonParser_AdaptiveMeshFlatAndNestedArrays", TestJsonParser_AdaptiveMeshFlatAndNestedArrays);
+            RunTest("TestTemplatedZone_SubDistrictHierarchyAndZoneMetadata", TestTemplatedZone_SubDistrictHierarchyAndZoneMetadata);
+            RunTest("TestTerrainMode_DualModeExecution", TestTerrainMode_DualModeExecution);
+            RunTest("TestEndToEnd_AdaptiveMeshSampleImport", TestEndToEnd_AdaptiveMeshSampleImport);
 
             Console.WriteLine("================================================================");
             Console.WriteLine($"RESULTS: {passedTests} PASSED, {failedTests} FAILED");
@@ -436,6 +442,368 @@ namespace WorldGen.Tests
             AssertEqual(1, roadsParent.transform.childCount, "Road count matches manifest");
         }
 
+        private static void TestAdaptiveMeshGenerator_VariableDensityMeshCreation()
+        {
+            var manifest = new TerrainManifest
+            {
+                width = 500f,
+                length = 500f,
+                height_scale = 100f,
+                mesh = new MeshDataManifest
+                {
+                    vertices = new List<float[]>
+                    {
+                        new float[] { 0f, 0f, 0f },
+                        new float[] { 250f, 5f, 0f },
+                        new float[] { 500f, 10f, 0f },
+                        new float[] { 0f, 5f, 250f },
+                        new float[] { 250f, 40f, 250f }, // Slope peak
+                        new float[] { 500f, 15f, 250f },
+                        new float[] { 0f, 10f, 500f },
+                        new float[] { 500f, 20f, 500f }
+                    },
+                    indices = new List<int>
+                    {
+                        0, 1, 3,  1, 4, 3,
+                        1, 2, 4,  2, 5, 4,
+                        3, 4, 6,  4, 5, 7
+                    },
+                    normals = new List<float[]>
+                    {
+                        new float[] { 0f, 1f, 0f },
+                        new float[] { 0f, 0.95f, 0.1f },
+                        new float[] { 0f, 1f, 0f },
+                        new float[] { 0.1f, 0.9f, 0f },
+                        new float[] { 0f, 0.8f, 0.6f },
+                        new float[] { -0.1f, 0.9f, 0f },
+                        new float[] { 0f, 1f, 0f },
+                        new float[] { 0f, 1f, 0f }
+                    },
+                    uvs = new List<float[]>
+                    {
+                        new float[] { 0f, 0f },
+                        new float[] { 0.5f, 0f },
+                        new float[] { 1f, 0f },
+                        new float[] { 0f, 0.5f },
+                        new float[] { 0.5f, 0.5f },
+                        new float[] { 1f, 0.5f },
+                        new float[] { 0f, 1f },
+                        new float[] { 1f, 1f }
+                    }
+                }
+            };
+
+            var parent = new GameObject("TerrainRoot");
+            GameObject meshGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, parent.transform);
+
+            Assert(meshGO != null, "AdaptiveTerrainMesh GameObject must be instantiated");
+            AssertEqual("AdaptiveTerrainMesh", meshGO.name, "GameObject name matches AdaptiveTerrainMesh");
+            AssertEqual(parent.transform, meshGO.transform.parent, "Mesh parented under TerrainRoot");
+
+            MeshFilter mf = meshGO.GetComponent<MeshFilter>();
+            Assert(mf != null, "MeshFilter attached");
+            Assert(mf.sharedMesh != null, "Mesh attached to MeshFilter");
+            AssertEqual(8, mf.sharedMesh.vertices.Length, "Vertex count matches 8");
+            AssertEqual(18, mf.sharedMesh.triangles.Length, "Triangle indices count matches 18 (6 triangles)");
+
+            MeshRenderer mr = meshGO.GetComponent<MeshRenderer>();
+            Assert(mr != null, "MeshRenderer attached");
+            Assert(mr.sharedMaterial != null, "Material attached to MeshRenderer");
+
+            MeshCollider mc = meshGO.GetComponent<MeshCollider>();
+            Assert(mc != null, "MeshCollider attached");
+            AssertEqual(mf.sharedMesh, mc.sharedMesh, "MeshCollider sharedMesh matches MeshFilter sharedMesh");
+        }
+
+        private static void TestAdaptiveMeshGenerator_32BitIndexBufferConfiguration()
+        {
+            // Case 1: Large mesh (> 65,535 vertices) -> must configure IndexFormat.UInt32
+            int largeVertCount = 70000;
+            var largeManifest = new TerrainManifest
+            {
+                width = 2000f,
+                length = 2000f,
+                height_scale = 200f,
+                mesh = new MeshDataManifest
+                {
+                    vertex_count = largeVertCount
+                }
+            };
+            for (int i = 0; i < largeVertCount; i++)
+            {
+                largeManifest.mesh.vertices.Add(new float[] { (i % 200) * 10f, (i / 200) * 0.5f, (i / 200) * 10f });
+            }
+            largeManifest.mesh.indices.AddRange(new int[] { 0, 1, 2, 65536, 65537, 65538 });
+
+            GameObject largeMeshGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(largeManifest, null);
+            Assert(largeMeshGO != null, "Large mesh GameObject instantiated");
+            MeshFilter largeMf = largeMeshGO.GetComponent<MeshFilter>();
+            Assert(largeMf != null && largeMf.sharedMesh != null, "Large mesh created");
+            AssertEqual(UnityEngine.Rendering.IndexFormat.UInt32, largeMf.sharedMesh.indexFormat, "32-bit IndexFormat configured for >65,535 vertices");
+
+            // Case 2: Small mesh (<= 65,535 vertices) -> IndexFormat.UInt16 default
+            var smallManifest = new TerrainManifest
+            {
+                width = 500f,
+                length = 500f,
+                height_scale = 100f,
+                mesh = new MeshDataManifest
+                {
+                    vertices = new List<float[]>
+                    {
+                        new float[] { 0f, 0f, 0f },
+                        new float[] { 100f, 0f, 0f },
+                        new float[] { 0f, 0f, 100f }
+                    },
+                    indices = new List<int> { 0, 1, 2 }
+                }
+            };
+            GameObject smallMeshGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(smallManifest, null);
+            MeshFilter smallMf = smallMeshGO.GetComponent<MeshFilter>();
+            AssertEqual(UnityEngine.Rendering.IndexFormat.UInt16, smallMf.sharedMesh.indexFormat, "16-bit IndexFormat used for small meshes");
+        }
+
+        private static void TestJsonParser_AdaptiveMeshFlatAndNestedArrays()
+        {
+            // 1. Nested arrays JSON
+            string nestedJson = @"{
+                ""terrain"": {
+                    ""resolution"": 257,
+                    ""world_size"": [1000.0, 150.0, 1000.0],
+                    ""mesh"": {
+                        ""vertex_count"": 4,
+                        ""triangle_count"": 2,
+                        ""decimation_ratio"": 0.25,
+                        ""vertices"": [
+                            [0.0, 0.0, 0.0],
+                            [1000.0, 0.0, 0.0],
+                            [0.0, 50.0, 1000.0],
+                            [1000.0, 50.0, 1000.0]
+                        ],
+                        ""indices"": [0, 1, 2, 1, 3, 2],
+                        ""normals"": [
+                            [0.0, 1.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.9, -0.1],
+                            [0.0, 0.9, -0.1]
+                        ],
+                        ""uvs"": [
+                            [0.0, 0.0],
+                            [1.0, 0.0],
+                            [0.0, 1.0],
+                            [1.0, 1.0]
+                        ]
+                    }
+                },
+                ""zones"": [],
+                ""buildings"": [],
+                ""roads"": []
+            }";
+
+            WorldManifest manifestNested = ManifestJsonParser.Parse(nestedJson);
+            Assert(manifestNested.terrain.mesh != null, "Nested mesh parsed");
+            AssertEqual(4, manifestNested.terrain.mesh.vertices.Count, "Nested vertices count");
+            AssertEqual(6, manifestNested.terrain.mesh.indices.Count, "Nested indices count");
+            AssertApproxEqual(1000.0f, manifestNested.terrain.mesh.vertices[1][0], 0.01f, "Nested vertex [1].x");
+
+            // 2. Flat arrays JSON
+            string flatJson = @"{
+                ""terrain"": {
+                    ""resolution"": 257,
+                    ""world_size"": [1000.0, 150.0, 1000.0],
+                    ""mesh"": {
+                        ""vertex_count"": 4,
+                        ""triangle_count"": 2,
+                        ""vertices"": [0.0, 0.0, 0.0, 1000.0, 0.0, 0.0, 0.0, 50.0, 1000.0, 1000.0, 50.0, 1000.0],
+                        ""indices"": [0, 1, 2, 1, 3, 2],
+                        ""normals"": [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.9, -0.1, 0.0, 0.9, -0.1],
+                        ""uvs"": [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+                    }
+                },
+                ""zones"": [],
+                ""buildings"": [],
+                ""roads"": []
+            }";
+
+            WorldManifest manifestFlat = ManifestJsonParser.Parse(flatJson);
+            Assert(manifestFlat.terrain.mesh != null, "Flat mesh parsed");
+            AssertEqual(4, manifestFlat.terrain.mesh.vertices.Count, "Flat vertices converted to list count");
+            AssertEqual(6, manifestFlat.terrain.mesh.indices.Count, "Flat indices count");
+            AssertApproxEqual(1000.0f, manifestFlat.terrain.mesh.vertices[1][0], 0.01f, "Flat vertex [1].x");
+        }
+
+        private static void TestTemplatedZone_SubDistrictHierarchyAndZoneMetadata()
+        {
+            string templatedJson = @"{
+                ""zones"": [
+                    {
+                        ""id"": ""zone_military_base"",
+                        ""name"": ""Fortified Base Bravo"",
+                        ""zone_type"": ""military_base"",
+                        ""faction"": ""B"",
+                        ""destruction"": ""03"",
+                        ""center"": [300.0, 20.0, 400.0],
+                        ""radius"": 90.0,
+                        ""density"": 0.75
+                    }
+                ],
+                ""buildings"": [
+                    {
+                        ""id"": ""bld_hq"",
+                        ""zone_id"": ""zone_military_base"",
+                        ""prefab_name"": ""SM_Bld_Village_House_01"",
+                        ""placement_role"": ""command"",
+                        ""district_id"": ""command_core"",
+                        ""position"": [300.0, 20.0, 400.0]
+                    },
+                    {
+                        ""id"": ""bld_tent_01"",
+                        ""zone_id"": ""zone_military_base"",
+                        ""prefab_name"": ""SM_Bld_Tent_01"",
+                        ""placement_role"": ""barracks"",
+                        ""district_id"": ""barracks_row"",
+                        ""position"": [280.0, 20.0, 390.0]
+                    },
+                    {
+                        ""id"": ""bld_tent_02"",
+                        ""zone_id"": ""zone_military_base"",
+                        ""prefab_name"": ""SM_Bld_Tent_01"",
+                        ""placement_role"": ""barracks"",
+                        ""district_id"": ""barracks_row"",
+                        ""position"": [280.0, 20.0, 410.0]
+                    }
+                ]
+            }";
+
+            WorldManifest manifest = ManifestJsonParser.Parse(templatedJson);
+            AssertEqual(1, manifest.zones.Count, "1 zone");
+            AssertEqual("military_base", manifest.zones[0].zone_type, "Zone type parsed");
+            AssertEqual("command_core", manifest.buildings[0].district_id, "District id parsed");
+
+            // Build hierarchy using Editor Window simulation
+            var root = new GameObject("[WorldGen_Output]");
+            var zonesRoot = new GameObject("Zones");
+            zonesRoot.transform.SetParent(root.transform);
+
+            var z = manifest.zones[0];
+            string zName = $"Zone_{z.id}_Faction{z.GetNormalizedFaction()}_Destruction{z.GetNormalizedDestruction()}";
+            GameObject zGO = new GameObject(zName);
+            zGO.transform.SetParent(zonesRoot.transform, false);
+
+            ZoneMetadata meta = zGO.AddComponent<ZoneMetadata>();
+            meta.zoneId = z.id;
+            meta.zoneName = z.name;
+            meta.zoneType = z.zone_type;
+            meta.faction = z.GetNormalizedFaction();
+            meta.destruction = z.GetNormalizedDestruction();
+            meta.density = z.density;
+            meta.radius = z.radius;
+            meta.center = z.GetCenterVector();
+
+            AssertEqual("military_base", meta.zoneType, "ZoneMetadata type");
+            AssertApproxEqual(0.75f, meta.density, 0.01f, "ZoneMetadata density");
+            AssertApproxEqual(90.0f, meta.radius, 0.01f, "ZoneMetadata radius");
+
+            // Spawn buildings with district containers
+            var districtTransforms = new Dictionary<string, Transform>();
+            foreach (var b in manifest.buildings)
+            {
+                string districtName = $"District_{b.district_id}";
+                if (!districtTransforms.TryGetValue(districtName, out Transform dTrans))
+                {
+                    GameObject dGO = new GameObject(districtName);
+                    dGO.transform.SetParent(zGO.transform, false);
+                    dTrans = dGO.transform;
+                    districtTransforms[districtName] = dTrans;
+                }
+
+                GameObject bGO = PrefabSpawner.SpawnBuilding(b, z, dTrans, "Assets/PolygonMilitary/Prefabs");
+                Assert(bGO != null, $"Building {b.id} spawned");
+            }
+
+            // Validate sub-district structure
+            AssertEqual(2, zGO.transform.childCount, "Zone has 2 sub-districts (District_command_core, District_barracks_row)");
+            AssertEqual("District_command_core", zGO.transform.GetChild(0).gameObject.name, "First sub-district name");
+            AssertEqual(1, zGO.transform.GetChild(0).childCount, "District_command_core has 1 building (HQ)");
+            AssertEqual("District_barracks_row", zGO.transform.GetChild(1).gameObject.name, "Second sub-district name");
+            AssertEqual(2, zGO.transform.GetChild(1).childCount, "District_barracks_row has 2 tents");
+        }
+
+        private static void TestTerrainMode_DualModeExecution()
+        {
+            var manifest = new TerrainManifest
+            {
+                resolution = 65,
+                width = 1000f,
+                height_scale = 150f,
+                length = 1000f,
+                raw_heightmap_2d = new float[,] { { 0f, 50f }, { 50f, 100f } },
+                mesh = new MeshDataManifest
+                {
+                    vertices = new List<float[]>
+                    {
+                        new float[] { 0f, 0f, 0f },
+                        new float[] { 1000f, 0f, 0f },
+                        new float[] { 0f, 0f, 1000f }
+                    },
+                    indices = new List<int> { 0, 1, 2 }
+                }
+            };
+
+            // Test Mode 1: AdaptiveDecimatedMesh
+            var root1 = new GameObject("Root1");
+            GameObject adaptiveGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, root1.transform);
+            Assert(adaptiveGO != null, "AdaptiveMesh built in AdaptiveDecimatedMesh mode");
+            AssertEqual(1, root1.transform.childCount, "Only AdaptiveTerrainMesh created");
+
+            // Test Mode 2: StandardTerrain
+            var root2 = new GameObject("Root2");
+            Terrain standardTerrain;
+            GameObject standardGO = TerrainGenerator.BuildTerrain(manifest, root2.transform, out standardTerrain);
+            Assert(standardGO != null, "Standard Terrain built in StandardTerrain mode");
+            Assert(standardTerrain != null, "Terrain component created");
+
+            // Test Mode 3: HybridBoth
+            var root3 = new GameObject("Root3");
+            GameObject adGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, root3.transform);
+            Terrain stTerrain;
+            GameObject stGO = TerrainGenerator.BuildTerrain(manifest, root3.transform, out stTerrain);
+            Assert(adGO != null && stGO != null, "Both AdaptiveTerrainMesh and Terrain built in Hybrid mode");
+            AssertEqual(2, root3.transform.childCount, "Hybrid root has 2 children");
+        }
+
+        private static void TestEndToEnd_AdaptiveMeshSampleImport()
+        {
+            string samplePath = "/Users/jack/worldgen/unity/sample_world_manifest.json";
+            Assert(File.Exists(samplePath), "sample_world_manifest.json must exist");
+
+            string json = File.ReadAllText(samplePath);
+            WorldManifest manifest = ManifestJsonParser.Parse(json);
+            Assert(manifest != null && manifest.terrain.mesh != null, "Sample manifest contains mesh");
+
+            var root = new GameObject("[WorldGen_Output]");
+            var terrainParent = new GameObject("Terrain");
+            terrainParent.transform.SetParent(root.transform);
+
+            // Build AdaptiveTerrainMesh
+            GameObject adaptiveGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest.terrain, terrainParent.transform);
+            Assert(adaptiveGO != null, "AdaptiveTerrainMesh instantiated in sample import");
+            MeshFilter mf = adaptiveGO.GetComponent<MeshFilter>();
+            Assert(mf != null && mf.sharedMesh != null, "MeshFilter sharedMesh populated");
+            AssertEqual(8, mf.sharedMesh.vertices.Length, "Sample mesh vertices count matches 8");
+            AssertEqual(18, mf.sharedMesh.triangles.Length, "Sample mesh triangles count matches 18");
+
+            // Build Roads conforming to adaptive mesh
+            var roadsParent = new GameObject("Roads");
+            roadsParent.transform.SetParent(root.transform);
+            foreach (var road in manifest.roads)
+            {
+                GameObject roadGO = RoadMeshBuilder.BuildRoad(road, roadsParent.transform, null, adaptiveGO, true, true);
+                Assert(roadGO != null, "Road successfully created conforming to AdaptiveTerrainMesh");
+            }
+        }
+
         #endregion
     }
 }
+

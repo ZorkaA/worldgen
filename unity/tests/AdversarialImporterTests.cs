@@ -65,6 +65,14 @@ namespace WorldGen.Tests
             RunTest("ADV_29_Terrain_InvertedMinMaxElevationManifest", Test_Terrain_InvertedMinMaxElevationManifest);
             RunTest("ADV_30_Road_AcuteZigzagAndSharpHairpins", Test_Road_AcuteZigzagAndSharpHairpins);
 
+            // Group 7: Adaptive Decimated Mesh & V2 Templated Hierarchy Adversarial Cases
+            RunTest("ADV_31_AdaptiveMesh_EmptyOrDegenerateMeshData", Test_AdaptiveMesh_EmptyOrDegenerateMeshData);
+            RunTest("ADV_32_AdaptiveMesh_FlatArrayLengthNotMultipleOfThree", Test_AdaptiveMesh_FlatArrayLengthNotMultipleOfThree);
+            RunTest("ADV_33_AdaptiveMesh_MissingNormalsAndUVsFallback", Test_AdaptiveMesh_MissingNormalsAndUVsFallback);
+            RunTest("ADV_34_TemplatedZone_NullDistrictAndOrphanedPlacementRole", Test_TemplatedZone_NullDistrictAndOrphanedPlacementRole);
+            RunTest("ADV_35_AdaptiveMesh_32BitLargeMeshStress", Test_AdaptiveMesh_32BitLargeMeshStress);
+            RunTest("ADV_36_AdaptiveMesh_MalformedJsonWithMixedNullAttributes", Test_AdaptiveMesh_MalformedJsonWithMixedNullAttributes);
+
             Console.WriteLine("================================================================");
             Console.WriteLine($"TOTAL ADVERSARIAL TESTS: {passedTests + failedTests}");
             Console.WriteLine($"PASSED: {passedTests}");
@@ -780,6 +788,138 @@ namespace WorldGen.Tests
             {
                 Assert(!float.IsNaN(v.x) && !float.IsNaN(v.y) && !float.IsNaN(v.z), "Vertices contain no NaNs during sharp turns");
             }
+        }
+
+        private static void Test_AdaptiveMesh_EmptyOrDegenerateMeshData()
+        {
+            // Null mesh
+            var nullManifest = new TerrainManifest { mesh = null };
+            Assert(AdaptiveMeshGenerator.BuildAdaptiveMesh(nullManifest, null) == null, "Null mesh should return null");
+
+            // Empty vertices mesh
+            var emptyManifest = new TerrainManifest { mesh = new MeshDataManifest() };
+            Assert(AdaptiveMeshGenerator.BuildAdaptiveMesh(emptyManifest, null) == null, "Empty mesh data should return null");
+        }
+
+        private static void Test_AdaptiveMesh_FlatArrayLengthNotMultipleOfThree()
+        {
+            var manifest = new TerrainManifest
+            {
+                width = 100f,
+                length = 100f,
+                height_scale = 50f,
+                mesh = new MeshDataManifest
+                {
+                    flat_vertices = new float[] { 0f, 1f, 2f, 3f, 4f }, // 5 elements -> only 1 complete vertex
+                    flat_indices = new int[] { 0, 0, 0 }
+                }
+            };
+
+            GameObject go = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, null);
+            Assert(go != null, "Building adaptive mesh with non-multiple flat vertices does not crash");
+            MeshFilter mf = go.GetComponent<MeshFilter>();
+            AssertEqual(1, mf.sharedMesh.vertexCount, "Vertex count is 1");
+        }
+
+        private static void Test_AdaptiveMesh_MissingNormalsAndUVsFallback()
+        {
+            var manifest = new TerrainManifest
+            {
+                width = 200f,
+                length = 200f,
+                height_scale = 100f,
+                mesh = new MeshDataManifest
+                {
+                    vertices = new List<float[]>
+                    {
+                        new float[] { 0f, 0f, 0f },
+                        new float[] { 200f, 10f, 0f },
+                        new float[] { 0f, 20f, 200f }
+                    },
+                    indices = new List<int> { 0, 1, 2 }
+                    // Normals and UVs are explicitly null
+                }
+            };
+
+            GameObject go = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, null);
+            Assert(go != null, "Adaptive mesh generated without provided normals/UVs");
+            MeshFilter mf = go.GetComponent<MeshFilter>();
+            Assert(mf.sharedMesh.normals != null && mf.sharedMesh.normals.Length == 3, "Normals automatically calculated");
+            Assert(mf.sharedMesh.uv != null && mf.sharedMesh.uv.Length == 3, "UVs automatically normalized");
+            foreach (var uv in mf.sharedMesh.uv)
+            {
+                Assert(uv.x >= 0f && uv.x <= 1f && uv.y >= 0f && uv.y <= 1f, "Fallback UVs clamped in [0, 1]");
+            }
+        }
+
+        private static void Test_TemplatedZone_NullDistrictAndOrphanedPlacementRole()
+        {
+            var z = new ZoneManifest { id = "z_test", name = "Test Zone" };
+            var bldNull = new BuildingManifest { id = "b_null", prefab_name = "SM_Bld_Tent_01", district_id = null, placement_role = null };
+            var bldRoleOnly = new BuildingManifest { id = "b_role", prefab_name = "SM_Bld_Tent_01", district_id = null, placement_role = "perimeter_watch" };
+
+            var zGO = new GameObject("Zone_z_test");
+            var dRole = new GameObject("District_perimeter_watch");
+            dRole.transform.SetParent(zGO.transform);
+
+            var spawnedNull = PrefabSpawner.SpawnBuilding(bldNull, z, zGO.transform, "Assets/PolygonMilitary/Prefabs");
+            var spawnedRole = PrefabSpawner.SpawnBuilding(bldRoleOnly, z, dRole.transform, "Assets/PolygonMilitary/Prefabs");
+
+            Assert(spawnedNull != null && spawnedRole != null, "Buildings with null districts spawned successfully");
+            AssertEqual(zGO.transform, spawnedNull.transform.parent, "Null district building parented directly to zone");
+            AssertEqual(dRole.transform, spawnedRole.transform.parent, "Role district building parented to role district");
+        }
+
+        private static void Test_AdaptiveMesh_32BitLargeMeshStress()
+        {
+            int vertCount = 100000;
+            var manifest = new TerrainManifest
+            {
+                width = 5000f,
+                length = 5000f,
+                height_scale = 500f,
+                mesh = new MeshDataManifest
+                {
+                    vertex_count = vertCount
+                }
+            };
+
+            for (int i = 0; i < vertCount; i++)
+            {
+                manifest.mesh.vertices.Add(new float[] { (i % 300) * 15f, (i / 300) * 0.2f, (i / 300) * 15f });
+            }
+            manifest.mesh.indices.AddRange(new int[] { 0, 1, 2, 99997, 99998, 99999 });
+
+            GameObject go = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest, null);
+            Assert(go != null, "100k vertex mesh instantiated");
+            MeshFilter mf = go.GetComponent<MeshFilter>();
+            AssertEqual(UnityEngine.Rendering.IndexFormat.UInt32, mf.sharedMesh.indexFormat, "IndexFormat configured to UInt32");
+            AssertEqual(vertCount, mf.sharedMesh.vertexCount, "Vertex count is 100k");
+            Assert(!float.IsNaN(mf.sharedMesh.bounds.size.x), "Bounds calculated without NaN");
+        }
+
+        private static void Test_AdaptiveMesh_MalformedJsonWithMixedNullAttributes()
+        {
+            string malformedJson = @"{
+                ""terrain"": {
+                    ""mesh"": {
+                        ""vertex_count"": 3,
+                        ""vertices"": [
+                            [0.0, 0.0, 0.0],
+                            null,
+                            [10.0, 5.0, 10.0]
+                        ],
+                        ""indices"": [0, 1, 2],
+                        ""normals"": null,
+                        ""uvs"": [null, [0.5, 0.5]]
+                    }
+                }
+            }";
+
+            WorldManifest manifest = ManifestJsonParser.Parse(malformedJson);
+            Assert(manifest.terrain.mesh != null, "Mesh parsed from malformed JSON");
+            GameObject go = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest.terrain, null);
+            Assert(go != null, "Built mesh safely despite null vertices and null UV entries");
         }
 
         #endregion

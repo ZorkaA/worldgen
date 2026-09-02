@@ -48,6 +48,22 @@ namespace WorldGen.Core
     }
 
     [Serializable]
+    public class MeshDataManifest
+    {
+        public List<float[]> vertices = new List<float[]>();
+        public List<int> indices = new List<int>();
+        public List<float[]> normals = new List<float[]>();
+        public List<float[]> uvs = new List<float[]>();
+        public float[] flat_vertices = null;
+        public int[] flat_indices = null;
+        public float[] flat_normals = null;
+        public float[] flat_uvs = null;
+        public int vertex_count = 0;
+        public int triangle_count = 0;
+        public float decimation_ratio = 1.0f;
+    }
+
+    [Serializable]
     public class TerrainManifest
     {
         public int resolution = 513;
@@ -59,6 +75,7 @@ namespace WorldGen.Core
         public float max_height = 150f;
         public float[,] raw_heightmap_2d = null;
         public float[] raw_heightmap_1d = null;
+        public MeshDataManifest mesh = null;
 
         public float GetWidth() => (world_size != null && world_size.Length >= 3 && world_size[0] > 0) ? world_size[0] : (width > 0 ? width : 1000f);
         public float GetHeightScale() => (world_size != null && world_size.Length >= 3 && world_size[1] > 0) ? world_size[1] : (height_scale > 0 ? height_scale : 150f);
@@ -70,6 +87,7 @@ namespace WorldGen.Core
     {
         public string id = "";
         public string name = "";
+        public string zone_type = "military_base";
         public string faction = "A"; // "A", "B", "C"
         public string destruction = "01"; // "01", "02", "03", "04"
         public float[] center = new float[] { 0f, 0f, 0f };
@@ -111,11 +129,27 @@ namespace WorldGen.Core
     }
 
     [Serializable]
+    public class ZoneMetadata : MonoBehaviour
+    {
+        public string zoneId = "";
+        public string zoneName = "";
+        public string zoneType = "military_base";
+        public string faction = "A";
+        public string destruction = "01";
+        public float density = 0.5f;
+        public float radius = 50f;
+        public Vector3 center = Vector3.zero;
+    }
+
+    [Serializable]
     public class BuildingManifest
     {
         public string id = "";
         public string zone_id = "";
         public string prefab_name = "";
+        public string placement_role = "";
+        public string district_id = "";
+        public string sub_district = "";
         public float[] position = new float[] { 0f, 0f, 0f };
         public float[] rotation = new float[] { 0f, 0f, 0f }; // Euler [x,y,z] or Quaternion [x,y,z,w]
         public float[] scale = new float[] { 1f, 1f, 1f };
@@ -254,6 +288,12 @@ namespace WorldGen.Core
                 if (tDict.TryGetValue("world_size", out object wsVal) && wsVal is List<object> wsList)
                     manifest.terrain.world_size = ConvertToFloatArray(wsList);
 
+                // Check terrain mesh (Adaptive Decimated Mesh)
+                if (tDict.TryGetValue("mesh", out object meshObj) && meshObj is Dictionary<string, object> mDict)
+                {
+                    manifest.terrain.mesh = ParseMeshData(mDict);
+                }
+
                 // Check heightmap (2D or 1D)
                 if (tDict.TryGetValue("heightmap", out object hmObj))
                 {
@@ -300,6 +340,8 @@ namespace WorldGen.Core
                     var z = new ZoneManifest();
                     if (zDict.TryGetValue("id", out object idVal)) z.id = idVal?.ToString() ?? "";
                     if (zDict.TryGetValue("name", out object nameVal)) z.name = nameVal?.ToString() ?? "";
+                    if (zDict.TryGetValue("zone_type", out object ztVal)) z.zone_type = ztVal?.ToString() ?? "military_base";
+                    else if (zDict.TryGetValue("type", out object ztVal2)) z.zone_type = ztVal2?.ToString() ?? "military_base";
                     if (zDict.TryGetValue("faction", out object fVal)) z.faction = fVal?.ToString() ?? "A";
                     if (zDict.TryGetValue("destruction", out object dVal)) z.destruction = dVal?.ToString() ?? "01";
                     if (zDict.TryGetValue("radius", out object radVal)) z.radius = ConvertToFloat(radVal);
@@ -334,6 +376,9 @@ namespace WorldGen.Core
                     if (bDict.TryGetValue("id", out object idVal)) b.id = idVal?.ToString() ?? "";
                     if (bDict.TryGetValue("zone_id", out object zidVal)) b.zone_id = zidVal?.ToString() ?? "";
                     if (bDict.TryGetValue("prefab_name", out object pnameVal)) b.prefab_name = pnameVal?.ToString() ?? "";
+                    if (bDict.TryGetValue("placement_role", out object prVal)) b.placement_role = prVal?.ToString() ?? "";
+                    if (bDict.TryGetValue("district_id", out object didVal)) b.district_id = didVal?.ToString() ?? "";
+                    if (bDict.TryGetValue("sub_district", out object sdidVal)) b.sub_district = sdidVal?.ToString() ?? "";
                     if (bDict.TryGetValue("faction", out object fVal)) b.faction = fVal?.ToString() ?? "";
                     if (bDict.TryGetValue("destruction", out object dVal)) b.destruction = dVal?.ToString() ?? "";
                     if (bDict.TryGetValue("position", out object posVal) && posVal is List<object> posList)
@@ -386,6 +431,102 @@ namespace WorldGen.Core
             }
 
             return manifest;
+        }
+
+        private static MeshDataManifest ParseMeshData(Dictionary<string, object> mDict)
+        {
+            var mesh = new MeshDataManifest();
+            if (mDict.TryGetValue("vertex_count", out object vcVal)) mesh.vertex_count = ConvertToInt(vcVal);
+            if (mDict.TryGetValue("triangle_count", out object tcVal)) mesh.triangle_count = ConvertToInt(tcVal);
+            if (mDict.TryGetValue("decimation_ratio", out object drVal)) mesh.decimation_ratio = ConvertToFloat(drVal);
+
+            // Vertices (support nested [[x,y,z], ...] and flat [x0, y0, z0, ...])
+            if (mDict.TryGetValue("vertices", out object vertsObj) && vertsObj is List<object> vertsList)
+            {
+                if (vertsList.Count > 0 && vertsList[0] is List<object>)
+                {
+                    foreach (var vItem in vertsList)
+                    {
+                        if (vItem is List<object> vList)
+                            mesh.vertices.Add(ConvertToFloatArray(vList));
+                    }
+                }
+                else if (vertsList.Count > 0)
+                {
+                    mesh.flat_vertices = ConvertToFloatArray(vertsList);
+                    for (int i = 0; i + 2 < mesh.flat_vertices.Length; i += 3)
+                    {
+                        mesh.vertices.Add(new float[] { mesh.flat_vertices[i], mesh.flat_vertices[i + 1], mesh.flat_vertices[i + 2] });
+                    }
+                }
+            }
+
+            // Indices / Triangles (support nested/flat)
+            List<object> indicesList = null;
+            if (mDict.TryGetValue("indices", out object idxObj) && idxObj is List<object> iList)
+                indicesList = iList;
+            else if (mDict.TryGetValue("triangles", out object triObj) && triObj is List<object> tList)
+                indicesList = tList;
+
+            if (indicesList != null)
+            {
+                mesh.flat_indices = new int[indicesList.Count];
+                for (int i = 0; i < indicesList.Count; i++)
+                {
+                    int val = ConvertToInt(indicesList[i]);
+                    mesh.indices.Add(val);
+                    mesh.flat_indices[i] = val;
+                }
+            }
+
+            // Normals (support nested [[x,y,z], ...] and flat [x0, y0, z0, ...])
+            if (mDict.TryGetValue("normals", out object normsObj) && normsObj is List<object> normsList)
+            {
+                if (normsList.Count > 0 && normsList[0] is List<object>)
+                {
+                    foreach (var nItem in normsList)
+                    {
+                        if (nItem is List<object> nList)
+                            mesh.normals.Add(ConvertToFloatArray(nList));
+                    }
+                }
+                else if (normsList.Count > 0)
+                {
+                    mesh.flat_normals = ConvertToFloatArray(normsList);
+                    for (int i = 0; i + 2 < mesh.flat_normals.Length; i += 3)
+                    {
+                        mesh.normals.Add(new float[] { mesh.flat_normals[i], mesh.flat_normals[i + 1], mesh.flat_normals[i + 2] });
+                    }
+                }
+            }
+
+            // UVs (support nested [[u,v], ...] and flat [u0, v0, ...])
+            if (mDict.TryGetValue("uvs", out object uvsObj) && uvsObj is List<object> uvsList)
+            {
+                if (uvsList.Count > 0 && uvsList[0] is List<object>)
+                {
+                    foreach (var uvItem in uvsList)
+                    {
+                        if (uvItem is List<object> uvList)
+                            mesh.uvs.Add(ConvertToFloatArray(uvList));
+                    }
+                }
+                else if (uvsList.Count > 0)
+                {
+                    mesh.flat_uvs = ConvertToFloatArray(uvsList);
+                    for (int i = 0; i + 1 < mesh.flat_uvs.Length; i += 2)
+                    {
+                        mesh.uvs.Add(new float[] { mesh.flat_uvs[i], mesh.flat_uvs[i + 1] });
+                    }
+                }
+            }
+
+            if (mesh.vertex_count <= 0)
+                mesh.vertex_count = mesh.vertices.Count;
+            if (mesh.triangle_count <= 0)
+                mesh.triangle_count = mesh.indices.Count / 3;
+
+            return mesh;
         }
 
         private static BoundingBoxManifest ParseBoundingBox(Dictionary<string, object> dict)
@@ -798,6 +939,153 @@ namespace WorldGen.Editor
 
     #endregion
 
+    #region Adaptive Decimated Mesh Generator
+
+    /// <summary>
+    /// Constructs optimized AdaptiveTerrainMesh GameObjects from decimated mesh data (vertices, indices, normals, UVs)
+    /// supporting 32-bit index buffers (IndexFormat.UInt32) when vertex count > 65,535.
+    /// </summary>
+    public static class AdaptiveMeshGenerator
+    {
+        public static GameObject BuildAdaptiveMesh(TerrainManifest manifest, Transform parentTransform)
+        {
+            if (manifest == null || manifest.mesh == null)
+                return null;
+
+            var meshData = manifest.mesh;
+            int vertCount = meshData.vertices != null && meshData.vertices.Count > 0
+                ? meshData.vertices.Count
+                : (meshData.flat_vertices != null ? meshData.flat_vertices.Length / 3 : 0);
+
+            if (vertCount == 0)
+                return null;
+
+            Mesh mesh = new Mesh();
+            mesh.name = "Terrain_AdaptiveDecimatedMesh";
+
+            // 32-bit index format configuration if vertex count exceeds 65,535
+            if (vertCount > 65535)
+            {
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            }
+
+            Vector3[] vertices = new Vector3[vertCount];
+            Vector2[] uvs = new Vector2[vertCount];
+            float width = manifest.GetWidth();
+            float length = manifest.GetLength();
+
+            for (int i = 0; i < vertCount; i++)
+            {
+                if (meshData.vertices != null && i < meshData.vertices.Count && meshData.vertices[i] != null && meshData.vertices[i].Length >= 3)
+                {
+                    float[] v = meshData.vertices[i];
+                    vertices[i] = new Vector3(v[0], v[1], v[2]);
+                }
+                else if (meshData.flat_vertices != null && (i * 3 + 2) < meshData.flat_vertices.Length)
+                {
+                    vertices[i] = new Vector3(meshData.flat_vertices[i * 3], meshData.flat_vertices[i * 3 + 1], meshData.flat_vertices[i * 3 + 2]);
+                }
+                else
+                {
+                    vertices[i] = Vector3.zero;
+                }
+
+                // Normalized UV coordinates
+                if (meshData.uvs != null && i < meshData.uvs.Count && meshData.uvs[i] != null && meshData.uvs[i].Length >= 2)
+                {
+                    uvs[i] = new Vector2(meshData.uvs[i][0], meshData.uvs[i][1]);
+                }
+                else if (meshData.flat_uvs != null && (i * 2 + 1) < meshData.flat_uvs.Length)
+                {
+                    uvs[i] = new Vector2(meshData.flat_uvs[i * 2], meshData.flat_uvs[i * 2 + 1]);
+                }
+                else
+                {
+                    uvs[i] = new Vector2(
+                        width > 0 ? Mathf.Clamp01(vertices[i].x / width) : 0f,
+                        length > 0 ? Mathf.Clamp01(vertices[i].z / length) : 0f
+                    );
+                }
+            }
+
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+
+            // Triangles / Indices
+            if (meshData.indices != null && meshData.indices.Count > 0)
+            {
+                mesh.triangles = meshData.indices.ToArray();
+            }
+            else if (meshData.flat_indices != null && meshData.flat_indices.Length > 0)
+            {
+                mesh.triangles = meshData.flat_indices;
+            }
+
+            // Normals
+            if (meshData.normals != null && meshData.normals.Count == vertCount)
+            {
+                Vector3[] normals = new Vector3[vertCount];
+                for (int i = 0; i < vertCount; i++)
+                {
+                    if (meshData.normals[i] != null && meshData.normals[i].Length >= 3)
+                        normals[i] = new Vector3(meshData.normals[i][0], meshData.normals[i][1], meshData.normals[i][2]);
+                    else
+                        normals[i] = Vector3.up;
+                }
+                mesh.normals = normals;
+            }
+            else if (meshData.flat_normals != null && meshData.flat_normals.Length == vertCount * 3)
+            {
+                Vector3[] normals = new Vector3[vertCount];
+                for (int i = 0; i < vertCount; i++)
+                {
+                    normals[i] = new Vector3(meshData.flat_normals[i * 3], meshData.flat_normals[i * 3 + 1], meshData.flat_normals[i * 3 + 2]);
+                }
+                mesh.normals = normals;
+            }
+            else
+            {
+                mesh.RecalculateNormals();
+            }
+
+            mesh.RecalculateBounds();
+            mesh.RecalculateTangents();
+
+            GameObject go = new GameObject("AdaptiveTerrainMesh");
+            go.transform.position = Vector3.zero;
+            go.transform.rotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+
+            if (parentTransform != null)
+                go.transform.SetParent(parentTransform, false);
+
+            MeshFilter mf = go.AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+
+            MeshRenderer mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = CreateTerrainMaterial();
+
+            MeshCollider mc = go.AddComponent<MeshCollider>();
+            mc.sharedMesh = mesh;
+
+#if UNITY_EDITOR
+            Undo.RegisterCreatedObjectUndo(go, "Create AdaptiveTerrainMesh");
+#endif
+
+            return go;
+        }
+
+        public static Material CreateTerrainMaterial()
+        {
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.name = "AdaptiveTerrain_Material";
+            mat.color = new Color(0.35f, 0.45f, 0.25f, 1.0f);
+            return mat;
+        }
+    }
+
+    #endregion
+
     #region Prefab Spawner & Asset Resolver
 
     /// <summary>
@@ -1145,6 +1433,11 @@ namespace WorldGen.Editor
     {
         public static GameObject BuildRoad(RoadManifest road, Transform parentTransform, Terrain terrain, bool createRibbonMesh = true, bool createLineRenderer = true)
         {
+            return BuildRoad(road, parentTransform, terrain, null, createRibbonMesh, createLineRenderer);
+        }
+
+        public static GameObject BuildRoad(RoadManifest road, Transform parentTransform, Terrain terrain, GameObject adaptiveTerrainMesh, bool createRibbonMesh = true, bool createLineRenderer = true)
+        {
             if (road == null || road.waypoints == null || road.waypoints.Count < 2)
             {
                 Debug.LogWarning($"[WorldGen] Road '{road?.id}' has fewer than 2 waypoints. Skipping.");
@@ -1188,6 +1481,15 @@ namespace WorldGen.Editor
                     Vector3 p = splinePoints[i];
                     float terrainHeight = terrain.SampleHeight(p);
                     p.y = Mathf.Max(p.y, terrainHeight + 0.15f);
+                    splinePoints[i] = p;
+                }
+            }
+            else if (adaptiveTerrainMesh != null)
+            {
+                for (int i = 0; i < splinePoints.Count; i++)
+                {
+                    Vector3 p = splinePoints[i];
+                    p.y += 0.15f;
                     splinePoints[i] = p;
                 }
             }
@@ -1362,6 +1664,13 @@ namespace WorldGen.Editor
     #region Editor Window & Importer Orchestrator
 
 #if UNITY_EDITOR
+    public enum TerrainImportMode
+    {
+        AdaptiveDecimatedMesh,
+        StandardTerrain,
+        HybridBoth
+    }
+
     /// <summary>
     /// Custom Unity EditorWindow providing a rich graphical interface for importing world_manifest.json,
     /// configuring search paths, toggling features, and managing procedural scene generation.
@@ -1374,6 +1683,7 @@ namespace WorldGen.Editor
         private string textureSearchFolder = "Assets/PolygonMilitary/Textures";
 
         private bool importTerrain = true;
+        private TerrainImportMode terrainImportMode = TerrainImportMode.AdaptiveDecimatedMesh;
         private bool importBuildings = true;
         private bool applyMaterials = true;
         private bool importRoads = true;
@@ -1496,6 +1806,12 @@ namespace WorldGen.Editor
         {
             EditorGUILayout.LabelField("Import Pipeline Options", EditorStyles.boldLabel);
             importTerrain = EditorGUILayout.Toggle("Import Terrain", importTerrain);
+            if (importTerrain)
+            {
+                EditorGUI.indentLevel++;
+                terrainImportMode = (TerrainImportMode)EditorGUILayout.EnumPopup("Terrain Mode", terrainImportMode);
+                EditorGUI.indentLevel--;
+            }
             importBuildings = EditorGUILayout.Toggle("Import Buildings & Prefabs", importBuildings);
             applyMaterials = EditorGUILayout.Toggle("Apply Faction & Damage Materials", applyMaterials);
             importRoads = EditorGUILayout.Toggle("Import Roads", importRoads);
@@ -1598,16 +1914,32 @@ namespace WorldGen.Editor
                 Undo.RegisterCreatedObjectUndo(rootGO, "Create WorldGen Root");
 
                 Terrain terrainInstance = null;
+                GameObject adaptiveTerrainGO = null;
 
                 // 3. Import Terrain
                 if (importTerrain && manifest.terrain != null)
                 {
-                    EditorUtility.DisplayProgressBar("WorldGen Importer", "Generating Terrain Data & Heights...", 0.2f);
+                    EditorUtility.DisplayProgressBar("WorldGen Importer", "Generating Terrain Data...", 0.2f);
                     GameObject terrainRoot = new GameObject("Terrain");
                     terrainRoot.transform.SetParent(rootGO.transform, false);
                     Undo.RegisterCreatedObjectUndo(terrainRoot, "Create Terrain Parent");
 
-                    TerrainGenerator.BuildTerrain(manifest.terrain, terrainRoot.transform, out terrainInstance);
+                    bool hasAdaptiveMesh = manifest.terrain.mesh != null &&
+                        ((manifest.terrain.mesh.vertices != null && manifest.terrain.mesh.vertices.Count > 0) ||
+                         (manifest.terrain.mesh.flat_vertices != null && manifest.terrain.mesh.flat_vertices.Length > 0));
+
+                    bool hasHeightmap = manifest.terrain.raw_heightmap_2d != null ||
+                        (manifest.terrain.raw_heightmap_1d != null && manifest.terrain.raw_heightmap_1d.Length > 0);
+
+                    if ((terrainImportMode == TerrainImportMode.AdaptiveDecimatedMesh || terrainImportMode == TerrainImportMode.HybridBoth) && hasAdaptiveMesh)
+                    {
+                        adaptiveTerrainGO = AdaptiveMeshGenerator.BuildAdaptiveMesh(manifest.terrain, terrainRoot.transform);
+                    }
+
+                    if ((terrainImportMode == TerrainImportMode.StandardTerrain || terrainImportMode == TerrainImportMode.HybridBoth || (!hasAdaptiveMesh && hasHeightmap)) && hasHeightmap)
+                    {
+                        TerrainGenerator.BuildTerrain(manifest.terrain, terrainRoot.transform, out terrainInstance);
+                    }
                 }
 
                 // 4. Index Prefab Assets
@@ -1638,6 +1970,17 @@ namespace WorldGen.Editor
                         zGO.transform.SetParent(zonesRoot.transform, false);
                         Undo.RegisterCreatedObjectUndo(zGO, "Create Zone Parent");
                         zoneTransforms[z.id] = zGO.transform;
+
+                        // Attach ZoneMetadata component
+                        ZoneMetadata meta = zGO.AddComponent<ZoneMetadata>();
+                        meta.zoneId = z.id;
+                        meta.zoneName = z.name;
+                        meta.zoneType = !string.IsNullOrEmpty(z.zone_type) ? z.zone_type : "military_base";
+                        meta.faction = z.GetNormalizedFaction();
+                        meta.destruction = z.GetNormalizedDestruction();
+                        meta.density = z.density > 0 ? z.density : z.building_density;
+                        meta.radius = z.radius;
+                        meta.center = z.GetCenterVector();
                     }
 
                     // Spawn Buildings
@@ -1648,15 +1991,44 @@ namespace WorldGen.Editor
                         float progress = 0.4f + (0.35f * ((float)i / totalBlds));
                         EditorUtility.DisplayProgressBar("WorldGen Importer", $"Spawning Building {i + 1}/{totalBlds} ({b.prefab_name})...", progress);
 
-                        Transform parent = zonesRoot.transform;
+                        Transform zoneParent = zonesRoot.transform;
                         ZoneManifest zManifest = null;
                         if (!string.IsNullOrEmpty(b.zone_id) && zoneTransforms.TryGetValue(b.zone_id, out Transform zTrans))
                         {
-                            parent = zTrans;
+                            zoneParent = zTrans;
                             zoneMap.TryGetValue(b.zone_id, out zManifest);
                         }
 
-                        GameObject bldInstance = PrefabSpawner.SpawnBuilding(b, zManifest, parent, prefabSearchFolder);
+                        // District Hierarchy
+                        Transform buildingParent = zoneParent;
+                        string districtKey = !string.IsNullOrEmpty(b.district_id) ? b.district_id :
+                                             (!string.IsNullOrEmpty(b.sub_district) ? b.sub_district :
+                                             (!string.IsNullOrEmpty(b.placement_role) ? b.placement_role : ""));
+
+                        if (!string.IsNullOrEmpty(districtKey) && zoneParent != zonesRoot.transform)
+                        {
+                            string districtName = districtKey.StartsWith("District_", StringComparison.OrdinalIgnoreCase) ? districtKey : $"District_{districtKey}";
+                            Transform existingDistrict = null;
+                            foreach (Transform child in zoneParent)
+                            {
+                                if (string.Equals(child.gameObject.name, districtName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    existingDistrict = child;
+                                    break;
+                                }
+                            }
+
+                            if (existingDistrict == null)
+                            {
+                                GameObject districtGO = new GameObject(districtName);
+                                districtGO.transform.SetParent(zoneParent, false);
+                                Undo.RegisterCreatedObjectUndo(districtGO, "Create District Parent");
+                                existingDistrict = districtGO.transform;
+                            }
+                            buildingParent = existingDistrict;
+                        }
+
+                        GameObject bldInstance = PrefabSpawner.SpawnBuilding(b, zManifest, buildingParent, prefabSearchFolder);
 
                         // Material & Texture Swapping
                         if (applyMaterials && bldInstance != null)
@@ -1678,7 +2050,7 @@ namespace WorldGen.Editor
 
                     foreach (var road in manifest.roads)
                     {
-                        RoadMeshBuilder.BuildRoad(road, roadsRoot.transform, terrainInstance, generateRoadRibbon, generateRoadLineRenderer);
+                        RoadMeshBuilder.BuildRoad(road, roadsRoot.transform, terrainInstance, adaptiveTerrainGO, generateRoadRibbon, generateRoadLineRenderer);
                     }
                 }
 
