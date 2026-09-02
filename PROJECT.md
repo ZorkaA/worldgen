@@ -50,12 +50,12 @@ A full-stack procedural 3D military world generation system composed of four mod
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| Test | E2E Testing Track | Test harness, validators, Tiers 1-4 tests, TEST_READY.md | none | IN_PROGRESS |
-| M1 | Asset Catalog Builder | Blender CLI bbox/render pipeline, Ollama VLM, `catalog.json` | none | IN_PROGRESS |
-| M2 | Procedural Generator Backend | FastAPI, Perlin, Numba erosion, Poisson zones, SAT buildings, A* roads | M1 (catalog) | PLANNED |
-| M3 | Interactive 3D Frontend | Vite + Three.js, visualizer, modern HUD side panels, catalog browser | M2 (API/manifest) | PLANNED |
-| M4 | Unity Importer Package | C# Editor script, TerrainData, PrefabUtility, material swap | M2 (manifest) | PLANNED |
-| M5 | E2E Pass & Adversarial Hardening | Pass 100% E2E tests (Tiers 1-4) + Tier 5 adversarial verification | M1, M2, M3, M4, Test | PLANNED |
+| Test | E2E Testing Track | Test harness, validators, Tiers 1-4 tests, TEST_READY.md | none | DONE |
+| M1 | Asset Catalog Builder | Blender CLI bbox/render pipeline, Ollama VLM, `catalog.json` | none | DONE |
+| M2 | Procedural Generator Backend | FastAPI, Perlin, Numba erosion, Poisson zones, SAT buildings, A* roads | M1 (catalog) | DONE |
+| M3 | Interactive 3D Frontend | Vite + Three.js, visualizer, modern HUD side panels, catalog browser | M2 (API/manifest) | DONE |
+| M4 | Unity Importer Package | C# Editor script, TerrainData, PrefabUtility, material swap | M2 (manifest) | DONE |
+| M5 | E2E Pass & Adversarial Hardening | Pass 100% E2E tests (Tiers 1-4) + Tier 5 adversarial verification | M1, M2, M3, M4, Test | DONE |
 
 ## Interface Contracts
 
