@@ -885,6 +885,35 @@ runTest('ADV_FE_24_WireframeMode_DecimatedMeshTopologyInspection', () => {
   visualizer.dispose();
 });
 
+runTest('ADV_FE_25_Viewer_DragVsOrbitControlsDisabling', () => {
+  const viewerCodePath = path.join(__dirname, 'src', 'scene', 'viewer.js');
+  const viewerCode = fs.readFileSync(viewerCodePath, 'utf-8');
+
+  // Verify OrbitControls disabled on dragstart
+  assert(viewerCode.includes('this.controls.enabled = false'), 'OrbitControls disabled when dragging starts');
+  assert(viewerCode.includes('this.controls.enabled = true'), 'OrbitControls re-enabled when dragging ends');
+
+  // Verify capture phase event listeners to intercept pointerdown before OrbitControls
+  assert(viewerCode.includes("addEventListener('pointerdown', this.onPointerDown.bind(this), { capture: true })"), 'pointerdown uses capture phase');
+  assert(viewerCode.includes("addEventListener('pointercancel', this.onPointerUp.bind(this), { capture: true })"), 'pointercancel bound to handle loss of focus');
+});
+
+runTest('ADV_FE_26_Viewer_PointerMoveDoesNotFireApi', () => {
+  const viewerCodePath = path.join(__dirname, 'src', 'scene', 'viewer.js');
+  const viewerCode = fs.readFileSync(viewerCodePath, 'utf-8');
+
+  // Extract onPointerMove body
+  const startIdx = viewerCode.indexOf('onPointerMove(event) {');
+  const endIdx = viewerCode.indexOf('onPointerUp(event) {');
+  const moveCode = viewerCode.substring(startIdx, endIdx);
+
+  assert(!moveCode.includes('generateWorld'), 'onPointerMove does not invoke generateWorld');
+  assert(!moveCode.includes('recomputeZone'), 'onPointerMove does not invoke recomputeZone');
+  assert(!moveCode.includes('fetch('), 'onPointerMove does not perform network fetches');
+  assert(!moveCode.includes('onZoneDroppedCallback'), 'onPointerMove does not trigger onZoneDroppedCallback');
+  assert(moveCode.includes('previewMoveZone'), 'onPointerMove performs client-side previewMoveZone visual translation');
+});
+
 console.log('================================================================');
 console.log(`TOTAL ADVERSARIAL FRONTEND TESTS: ${passedTests + failedTests}`);
 console.log(`PASSED: ${passedTests}`);

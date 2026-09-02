@@ -131,7 +131,7 @@ def generate_adaptive_mesh(
 
     subdivide(0, 0, res_x - 1, res_z - 1)
 
-    def get_quad_perimeter_vertices(x0: int, z0: int, x1: int, z1: int) -> List[int]:
+    def get_quad_perimeter_keys(x0: int, z0: int, x1: int, z1: int) -> List[Tuple[int, int]]:
         # CCW order in XZ:
         # Left edge: (x0, z) for z in z0..z1
         left_pts = [(x0, z) for z in range(z0, z1 + 1) if (x0, z) in vertex_map]
@@ -156,11 +156,12 @@ def generate_adaptive_mesh(
         if len(ordered_keys) > 1 and ordered_keys[0] == ordered_keys[-1]:
             ordered_keys.pop()
 
-        return [vertex_map[k] for k in ordered_keys]
+        return ordered_keys
 
     # Emit watertight manifold triangles
     for x0, z0, x1, z1 in leaf_quads:
-        poly = get_quad_perimeter_vertices(x0, z0, x1, z1)
+        poly_keys = get_quad_perimeter_keys(x0, z0, x1, z1)
+        poly = [vertex_map[k] for k in poly_keys]
         if len(poly) == 4:
             v00, v01, v11, v10 = poly[0], poly[1], poly[2], poly[3]
             if v00 != v01 and v00 != v10 and v01 != v10:
@@ -168,15 +169,58 @@ def generate_adaptive_mesh(
             if v10 != v01 and v10 != v11 and v01 != v11:
                 triangles.extend([v10, v01, v11])
         elif len(poly) > 4:
-            xm = (x0 + x1) // 2
-            zm = (z0 + z1) // 2
-            vm = get_or_create_vertex(xm, zm)
-            for k in range(len(poly)):
-                k_next = (k + 1) % len(poly)
-                v_curr = poly[k]
-                v_next = poly[k_next]
-                if v_curr != v_next and v_curr != vm and v_next != vm:
-                    triangles.extend([vm, v_curr, v_next])
+            if (x1 - x0 >= 2) and (z1 - z0 >= 2):
+                xm = (x0 + x1) // 2
+                zm = (z0 + z1) // 2
+                vm = get_or_create_vertex(xm, zm)
+                for k in range(len(poly)):
+                    k_next = (k + 1) % len(poly)
+                    v_curr = poly[k]
+                    v_next = poly[k_next]
+                    if v_curr != v_next and v_curr != vm and v_next != vm:
+                        triangles.extend([vm, v_curr, v_next])
+            elif x1 - x0 == 1:
+                # 1-cell wide strip: triangulate between left and right edges
+                left_pts = [(x, z) for (x, z) in poly_keys if x == x0]
+                left_pts.sort(key=lambda p: p[1])
+                right_pts = [(x, z) for (x, z) in poly_keys if x == x1]
+                right_pts.sort(key=lambda p: p[1])
+                i, j = 0, 0
+                while i < len(left_pts) - 1 or j < len(right_pts) - 1:
+                    if i == len(left_pts) - 1:
+                        triangles.extend([vertex_map[right_pts[j]], vertex_map[left_pts[i]], vertex_map[right_pts[j+1]]])
+                        j += 1
+                    elif j == len(right_pts) - 1:
+                        triangles.extend([vertex_map[left_pts[i]], vertex_map[left_pts[i+1]], vertex_map[right_pts[j]]])
+                        i += 1
+                    else:
+                        if left_pts[i+1][1] <= right_pts[j+1][1]:
+                            triangles.extend([vertex_map[left_pts[i]], vertex_map[left_pts[i+1]], vertex_map[right_pts[j]]])
+                            i += 1
+                        else:
+                            triangles.extend([vertex_map[right_pts[j]], vertex_map[left_pts[i]], vertex_map[right_pts[j+1]]])
+                            j += 1
+            elif z1 - z0 == 1:
+                # 1-cell tall strip: triangulate between top and bottom edges
+                top_pts = [(x, z) for (x, z) in poly_keys if z == z0]
+                top_pts.sort(key=lambda p: p[0])
+                bottom_pts = [(x, z) for (x, z) in poly_keys if z == z1]
+                bottom_pts.sort(key=lambda p: p[0])
+                i, j = 0, 0
+                while i < len(top_pts) - 1 or j < len(bottom_pts) - 1:
+                    if i == len(top_pts) - 1:
+                        triangles.extend([vertex_map[bottom_pts[j]], vertex_map[bottom_pts[j+1]], vertex_map[top_pts[i]]])
+                        j += 1
+                    elif j == len(bottom_pts) - 1:
+                        triangles.extend([vertex_map[top_pts[i]], vertex_map[bottom_pts[j]], vertex_map[top_pts[i+1]]])
+                        i += 1
+                    else:
+                        if top_pts[i+1][0] <= bottom_pts[j+1][0]:
+                            triangles.extend([vertex_map[top_pts[i]], vertex_map[bottom_pts[j]], vertex_map[top_pts[i+1]]])
+                            i += 1
+                        else:
+                            triangles.extend([vertex_map[bottom_pts[j]], vertex_map[bottom_pts[j+1]], vertex_map[top_pts[i]]])
+                            j += 1
 
     full_grid_triangles = 2 * (res_x - 1) * (res_z - 1)
     actual_triangles = len(triangles) // 3

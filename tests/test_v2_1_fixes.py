@@ -181,9 +181,97 @@ class TestTerrainMeshManifoldnessFixes:
         for e, count in edge_counts.items():
             assert count in (1, 2), f"Non-manifold edge {e} shared by {count} triangles!"
 
+    @pytest.mark.parametrize("res_z,res_x", [(30, 40), (65, 33), (17, 65), (33, 65)])
+    def test_asymmetric_resolution_manifoldness_and_zero_degeneracy(self, res_z: int, res_x: int):
+        """Verifies that non-square and asymmetric resolutions produce 100% manifold, non-degenerate meshes."""
+        rng = np.random.RandomState(42)
+        hmap = rng.uniform(0.0, 100.0, size=(res_z, res_x)).astype(np.float32)
+
+        for max_err in [0.5, 5.0, 20.0]:
+            mesh = generate_adaptive_mesh(hmap, [1000.0, 100.0, 1000.0], max_error=max_err)
+            verts = mesh.vertices
+            indices = mesh.indices
+            num_verts = len(verts)
+
+            assert len(indices) % 3 == 0
+            edge_counts = {}
+            for t in range(0, len(indices), 3):
+                i0, i1, i2 = indices[t], indices[t + 1], indices[t + 2]
+                assert 0 <= i0 < num_verts
+                assert 0 <= i1 < num_verts
+                assert 0 <= i2 < num_verts
+                assert i0 != i1 and i1 != i2 and i0 != i2
+
+                p0 = verts[i0]
+                p1 = verts[i1]
+                p2 = verts[i2]
+                cross_y = (p1[2] - p0[2]) * (p2[0] - p0[0]) - (p1[0] - p0[0]) * (p2[2] - p0[2])
+                assert cross_y > 1e-6, f"Triangle [{i0}, {i1}, {i2}] zero-area or inverted at res ({res_z},{res_x}) err {max_err}"
+
+                for e in [(min(i0, i1), max(i0, i1)),
+                          (min(i1, i2), max(i1, i2)),
+                          (min(i2, i0), max(i2, i0))]:
+                    edge_counts[e] = edge_counts.get(e, 0) + 1
+
+            for e, count in edge_counts.items():
+                assert count in (1, 2), f"Non-manifold edge {e} (count={count}) in asymmetric mesh ({res_z},{res_x})"
+
 
 # ============================================================================
-# 3. R3 & R4: Frontend Drag & API Synchronization Static Verification
+# 3. Delaunay & Road Pathfinding Boundary & Degeneracy Tests
+# ============================================================================
+
+class TestDelaunayAndRoadEdgeCases:
+    """Verifies edge cases for Delaunay triangulation and A* road generation."""
+
+    def test_delaunay_collinear_points(self):
+        """Collinear points should gracefully fallback to sequential chain without crashing."""
+        pts = [(0.0, 0.0), (100.0, 100.0), (200.0, 200.0), (300.0, 300.0)]
+        edges = _delaunay_triangulation_2d(pts)
+        assert len(edges) >= 3
+        for u, v in edges:
+            assert 0 <= u < len(pts)
+            assert 0 <= v < len(pts)
+            assert u != v
+
+    def test_delaunay_two_and_three_points(self):
+        """2 and 3 point configurations must return valid non-overlapping edges."""
+        pts_2 = [(10.0, 20.0), (50.0, 80.0)]
+        edges_2 = _delaunay_triangulation_2d(pts_2)
+        assert edges_2 == [(0, 1)]
+
+        pts_3 = [(10.0, 20.0), (50.0, 80.0), (90.0, 10.0)]
+        edges_3 = _delaunay_triangulation_2d(pts_3)
+        assert len(edges_3) == 3
+
+    def test_road_generation_with_strict_slope_limit(self):
+        """When max_road_slope is very low (e.g. 0.05), pathfinding falls back to dense height-sampled line."""
+        res = 65
+        hmap = np.zeros((res, res), dtype=np.float32)
+        # Steep mountain in the center
+        hmap[25:40, 25:40] = 80.0
+        cfg = TerrainConfig(resolution=res, world_size=[1000.0, 100.0, 1000.0], max_road_slope=0.02)
+
+        zones = [
+            Zone(id="zone_0", name="A", faction="A", destruction="01", zone_type="military_base",
+                 density=0.5, center=[100.0, 0.0, 100.0], radius=50.0, footprint_points=[]),
+            Zone(id="zone_1", name="B", faction="B", destruction="02", zone_type="outpost",
+                 density=0.5, center=[900.0, 0.0, 900.0], radius=50.0, footprint_points=[]),
+        ]
+
+        roads = generate_roads(hmap, zones, cfg, seed=42)
+        assert len(roads) == 1
+        road = roads[0]
+        assert len(road.waypoints) >= 20  # Sampled densely
+        for wp in road.waypoints:
+            assert len(wp) == 3
+            # Valid coordinate bounds
+            assert 0.0 <= wp[0] <= 1000.0
+            assert 0.0 <= wp[2] <= 1000.0
+
+
+# ============================================================================
+# 4. R3 & R4: Frontend Drag & API Synchronization Static Verification
 # ============================================================================
 
 class TestFrontendDragAndApiSync:

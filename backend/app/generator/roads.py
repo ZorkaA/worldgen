@@ -35,9 +35,10 @@ def _sample_terrain_straight_line(
 
 def _catmull_rom_spline(
     points: List[Tuple[float, float, float]],
-    num_samples_per_seg: int = 6,
+    num_samples_per_seg: Optional[int] = None,
+    sample_spacing: float = 8.0,
 ) -> List[Tuple[float, float, float]]:
-    """Compute 3D Catmull-Rom spline interpolation through waypoints."""
+    """Compute 3D Catmull-Rom spline interpolation through waypoints with dense terrain elevation sampling."""
     if len(points) < 2:
         return points
 
@@ -51,8 +52,14 @@ def _catmull_rom_spline(
         p2 = p[i + 1]
         p3 = p[i + 2]
 
-        for s in range(num_samples_per_seg):
-            t = s / float(num_samples_per_seg)
+        seg_dist = math.hypot(p2[0] - p1[0], p2[2] - p1[2])
+        if num_samples_per_seg is not None:
+            n_samples = max(num_samples_per_seg, int(math.ceil(seg_dist / max(1.0, sample_spacing))))
+        else:
+            n_samples = max(2, int(math.ceil(seg_dist / max(1.0, sample_spacing))))
+
+        for s in range(n_samples):
+            t = s / float(n_samples)
             t2 = t * t
             t3 = t2 * t
 
@@ -277,8 +284,8 @@ def _find_slope_aware_astar_path(
         wy = _sample_heightmap_bilinear(heightmap, wx, wz, world_w, world_l)
         waypoints_3d.append((wx, wy + 0.15, wz))
 
-    # Apply Catmull-Rom spline interpolation
-    smooth_waypoints = _catmull_rom_spline(waypoints_3d, num_samples_per_seg=4)
+    # Apply Catmull-Rom spline interpolation with 5-10m sample spacing
+    smooth_waypoints = _catmull_rom_spline(waypoints_3d, sample_spacing=8.0)
 
     # Re-clamp height of spline points onto terrain
     final_waypoints = []
