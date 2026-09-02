@@ -9,21 +9,6 @@ WorldGen V2 enhances the procedural military world generation system with dynami
 4. **Unity Importer Package (R3, R4)**: Unity Editor C# package (`WorldManifestImporter.cs`) parsing `world_manifest.json`, instantiating Unity `TerrainData` and `AdaptiveTerrainMesh` GameObjects (with `MeshFilter`, `MeshRenderer`, `MeshCollider`, 32-bit index buffers), instantiating Synty PolygonMilitary prefabs via `PrefabUtility.InstantiatePrefab`, and swapping material textures for factions A/B/C and destruction levels 01-04.
 5. **E2E Testing Track**: Comprehensive test suite covering Tiers 1-4 (feature coverage, boundaries, combinatorial, and real-world workloads) with automated programmatic tests for map dimensions, mesh indices, and road slope limits, plus Agent-as-Judge review rubrics for zone drag/recompute and adaptive mesh loading.
 
-```
-[Synty PolygonMilitary Assets] + [Ollama qwen3.8:27b VLM / Layout Templates]
-                          │
-                          ▼
-            [FastAPI Generator Backend V2]
- (Perlin + Deformation + Smooth Falloff + Adaptive Decimation + A* Road Limits)
-                          │
-                          ▼ (world_manifest.json)
-        ┌─────────────────┴─────────────────┐
-        ▼                                   ▼
-[Three.js Interactive Frontend V2]   [Unity C# Importer V2]
- (Zone CRUD + Drag-Recompute +       (AdaptiveTerrainMesh +
-  Adaptive Mesh + Continuous Density)  PrefabUtility + Material Swap)
-```
-
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
@@ -51,12 +36,12 @@ WorldGen V2 enhances the procedural military world generation system with dynami
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| Test | E2E Testing Track Update | Programmatic tests for dimensions, mesh indices, road slope; V2 rubrics | none | IN_PROGRESS |
-| M1 | Backend Global Params & Road Limits | Schemas, map km sizing, deformation, smooth falloff, A* max_road_slope | none | PLANNED |
-| M2 | Backend Adaptive Mesh & AI Templates | Curvature Delaunay decimation, Qwen layout templates, continuous density | M1 | PLANNED |
-| M3 | Frontend V2 Overhaul | Zone CRUD, 3D viewport drag-to-recompute, adaptive mesh, utilitarian UI | M1, M2 | PLANNED |
-| M4 | Unity Importer V2 | AdaptiveTerrainMesh loader, 32-bit index buffers, C# tests | M1, M2 | PLANNED |
-| M5 | E2E Integration & Adversarial Hardening | 100% E2E test pass, Tier 5 stress-testing, Forensic Integrity Audit | M1, M2, M3, M4, Test | PLANNED |
+| Test | E2E Testing Track Update | Programmatic tests for dimensions, mesh indices, road slope; V2 rubrics | none | DONE |
+| M1 | Backend Global Params & Road Limits | Schemas, map km sizing, deformation, smooth falloff, A* max_road_slope | none | DONE |
+| M2 | Backend Adaptive Mesh & AI Templates | Curvature Delaunay decimation, Qwen layout templates, continuous density | M1 | DONE |
+| M3 | Frontend V2 Overhaul | Zone CRUD, 3D viewport drag-to-recompute, adaptive mesh, utilitarian UI | M1, M2 | DONE |
+| M4 | Unity Importer V2 | AdaptiveTerrainMesh loader, 32-bit index buffers, C# tests | M1, M2 | DONE |
+| M5 | E2E Integration & Adversarial Hardening | 100% E2E test pass, Tier 5 stress-testing, Forensic Integrity Audit | M1, M2, M3, M4, Test | DONE |
 
 ## Interface Contracts
 
@@ -154,81 +139,4 @@ WorldGen V2 enhances the procedural military world generation system with dynami
     }
   }
 }
-```
-
-## Code Layout
-```
-/Users/jack/worldgen/
-├── backend/
-│   ├── pyproject.toml
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   └── routes.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   └── schemas.py
-│   │   ├── generator/
-│   │   │   ├── terrain.py
-│   │   │   ├── erosion.py
-│   │   │   ├── mesh.py          <-- New adaptive mesh decimation
-│   │   │   ├── zones.py
-│   │   │   ├── buildings.py
-│   │   │   ├── roads.py
-│   │   │   └── pipeline.py
-│   │   └── catalog/
-│   │       ├── builder.py
-│   │       ├── blender_extract.py
-│   │       ├── vlm_enrich.py
-│   │       ├── generate_templates.py <-- AI Qwen layout template generator
-│   │       ├── templates.json        <-- Cached offline layout templates
-│   │       └── catalog.json
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── index.html
-│   └── src/
-│       ├── main.js
-│       ├── style.css
-│       ├── scene/
-│       │   ├── viewer.js         <-- Zone center raycast drag controls
-│       │   ├── terrain.js        <-- Adaptive decimated mesh BufferGeometry
-│       │   ├── zones.js          <-- Dynamic zone drag preview
-│       │   ├── buildings.js
-│       │   └── roads.js
-│       ├── components/
-│       │   ├── hud.js
-│       │   ├── terrain_panel.js  <-- Global parameters (km, res, deformation)
-│       │   ├── zone_panel.js     <-- Zone CRUD & continuous density slider
-│       │   └── catalog_browser.js
-│       └── api/
-│           └── client.js         <-- Recompute endpoint & offline generator
-├── unity/
-│   ├── Assets/
-│   │   └── Editor/
-│   │       └── WorldManifestImporter.cs <-- AdaptiveTerrainMesh builder
-│   ├── stubs/
-│   │   ├── UnityEngineStubs.cs
-│   │   └── UnityEditorStubs.cs
-│   └── tests/
-│       ├── WorldImporterTests.cs
-│       └── AdversarialImporterTests.cs
-├── tests/
-│   ├── conftest.py
-│   ├── test_manifest_schema.py
-│   ├── test_generator.py
-│   ├── test_catalog.py
-│   ├── test_e2e_pipeline.py
-│   ├── test_map_dimensions.py   <-- New programmatic dimension tests
-│   ├── test_adaptive_mesh.py    <-- New programmatic mesh decimation tests
-│   ├── test_road_slope_limits.py<-- New programmatic road slope tests
-│   ├── test_layout_templates.py <-- New layout template tests
-│   ├── validate_catalog.py
-│   └── rubrics/
-│       ├── frontend_rubric.md   <-- Updated V2 Agent-as-Judge rubric
-│       └── unity_rubric.md      <-- Updated V2 Agent-as-Judge rubric
-├── PROJECT.md
-└── TEST_READY.md
 ```
