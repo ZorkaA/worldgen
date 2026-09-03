@@ -63,7 +63,7 @@ export class ZonePanel {
         <div class="form-group">
           <div class="label-row">
             <label for="zone-count">Target Zone Count</label>
-            <output id="out-zone-count">${this.config.zone_count_target}</output>
+            <input type="text" id="out-zone-count" class="input-text" value="${this.config.zone_count_target}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="zone-count" class="input-range" min="1" max="15" step="1" value="${this.config.zone_count_target}" />
         </div>
@@ -72,7 +72,7 @@ export class ZonePanel {
         <div class="form-group">
           <div class="label-row">
             <label for="zone-min-dist">Min Zone Spacing</label>
-            <output id="out-zone-min-dist">${this.config.min_zone_distance}m</output>
+            <input type="text" id="out-zone-min-dist" class="input-text" value="${this.config.min_zone_distance}m" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="zone-min-dist" class="input-range" min="50" max="300" step="10" value="${this.config.min_zone_distance}" />
         </div>
@@ -81,7 +81,7 @@ export class ZonePanel {
         <div class="form-group">
           <div class="label-row">
             <label for="zone-density">Global Building Density</label>
-            <output id="out-zone-density">${this.getDensityBadgeText(this.config.density)}</output>
+            <input type="text" id="out-zone-density" class="input-text" value="${this.getDensityBadgeText(this.config.density)}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="zone-density" class="input-range" min="0.05" max="1.00" step="0.05" value="${this.config.density}" />
         </div>
@@ -121,7 +121,7 @@ export class ZonePanel {
         <div class="form-group">
           <div class="label-row">
             <label for="zone-max-damage">Max Destruction Level</label>
-            <output id="out-zone-max-damage">Level 04 (Scorched)</output>
+            <input type="text" id="out-zone-max-damage" class="input-text" value="Level 04 (Scorched)" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <select id="zone-max-damage" class="input-select">
             <option value="1">01 — Pristine Condition</option>
@@ -183,7 +183,7 @@ export class ZonePanel {
           <div class="form-group" style="margin-bottom: 6px;">
             <div class="label-row">
               <label for="new-zone-radius" style="font-size: 10px;">Radius</label>
-              <output id="out-new-zone-radius">75m</output>
+              <input type="text" id="out-new-zone-radius" class="input-text" value="75m" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
             </div>
             <input type="range" id="new-zone-radius" class="input-range" min="40" max="150" step="5" value="75" />
           </div>
@@ -191,7 +191,7 @@ export class ZonePanel {
           <div class="form-group" style="margin-bottom: 8px;">
             <div class="label-row">
               <label for="new-zone-density" style="font-size: 10px;">Density</label>
-              <output id="out-new-zone-density">0.55 (Standard Base)</output>
+              <input type="text" id="out-new-zone-density" class="input-text" value="0.55 (Standard Base)" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
             </div>
             <input type="range" id="new-zone-density" class="input-range" min="0.05" max="1.00" step="0.05" value="0.55" />
           </div>
@@ -291,6 +291,38 @@ export class ZonePanel {
     newDensitySlider.addEventListener('input', (e) => {
       outNewDensity.value = this.getDensityBadgeText(parseFloat(e.target.value));
     });
+
+    // Bind editable text boxes back to the sliders
+    const bindSync = (outElem, sliderElem, updateCb) => {
+      if (!outElem || !sliderElem) return;
+      outElem.addEventListener('change', (e) => {
+        let textVal = e.target.value.replace(/[^0-9.-]/g, '');
+        if (!textVal) return;
+        const val = parseFloat(textVal);
+        sliderElem.value = val;
+        updateCb(val, e.target);
+      });
+    };
+
+    bindSync(outCount, sliderCount, (val, out) => {
+      this.config.zone_count_target = val;
+      out.value = val;
+    });
+    bindSync(outMinDist, sliderMinDist, (val, out) => {
+      this.config.min_zone_distance = val;
+      out.value = `${val}m`;
+    });
+    bindSync(outDensity, sliderDensity, (val, out) => {
+      this.config.density = val;
+      out.value = this.getDensityBadgeText(val);
+    });
+    bindSync(outNewRadius, newRadiusSlider, (val, out) => {
+      out.value = `${val}m`;
+    });
+    bindSync(outNewDensity, newDensitySlider, (val, out) => {
+      out.value = this.getDensityBadgeText(val);
+    });
+
 
     btnConfirmAdd.addEventListener('click', () => {
       const name = this.container.querySelector('#new-zone-name').value.trim() || `Tactical Zone ${this.activeZones.length + 1}`;

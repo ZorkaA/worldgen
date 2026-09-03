@@ -23,7 +23,7 @@ export class TerrainPanel {
       deformation_strength: 0.85,
       edge_margin: 150.0,
       max_road_slope: 0.25,
-      generate_roads: true,
+      generate_roads: false,
       height_scale: 120.0,
       scale: 256.0,
       octaves: 6,
@@ -62,7 +62,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-width-km">Map Width (km)</label>
-            <output id="out-width-km">${this.config.map_width_km.toFixed(2)} km</output>
+            <input type="text" id="out-width-km" class="input-text" value="${this.config.map_width_km.toFixed(2)} km" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-width-km" class="input-range" min="0.5" max="4.0" step="0.25" value="${this.config.map_width_km}" />
         </div>
@@ -71,7 +71,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-length-km">Map Length (km)</label>
-            <output id="out-length-km">${this.config.map_length_km.toFixed(2)} km</output>
+            <input type="text" id="out-length-km" class="input-text" value="${this.config.map_length_km.toFixed(2)} km" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-length-km" class="input-range" min="0.5" max="4.0" step="0.25" value="${this.config.map_length_km}" />
         </div>
@@ -94,7 +94,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-deformation">Deformation Strength</label>
-            <output id="out-deformation">${Math.round(this.config.deformation_strength * 100)}%</output>
+            <input type="text" id="out-deformation" class="input-text" value="${Math.round(this.config.deformation_strength * 100)}%" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-deformation" class="input-range" min="0.0" max="1.0" step="0.05" value="${this.config.deformation_strength}" />
         </div>
@@ -103,7 +103,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-edge-margin">Edge Margin Offset</label>
-            <output id="out-edge-margin">${this.config.edge_margin}m</output>
+            <input type="text" id="out-edge-margin" class="input-text" value="${this.config.edge_margin}m" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-edge-margin" class="input-range" min="25" max="400" step="25" value="${this.config.edge_margin}" />
         </div>
@@ -114,13 +114,13 @@ export class TerrainPanel {
         <div class="form-group">
           <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
             <span>Generate Road Network</span>
-            <input type="checkbox" id="terrain-generate-roads" checked class="modern-checkbox">
+            <input type="checkbox" id="terrain-generate-roads" class="modern-checkbox">
           </label>
         </div>
 <div class="form-group">
           <div class="label-row">
             <label for="terrain-road-slope">Max Road Incline Grade</label>
-            <output id="out-road-slope">${Math.round(this.config.max_road_slope * 100)}%</output>
+            <input type="text" id="out-road-slope" class="input-text" value="${Math.round(this.config.max_road_slope * 100)}%" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-road-slope" class="input-range" min="0.05" max="0.45" step="0.05" value="${this.config.max_road_slope}" />
         </div>
@@ -136,7 +136,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-seed">Seed</label>
-            <output id="out-terrain-seed">${this.config.seed}</output>
+            <input type="text" id="out-terrain-seed" class="input-text" value="${this.config.seed}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <div style="display: flex; gap: 6px;">
             <input type="number" id="terrain-seed" class="input-text" value="${this.config.seed}" min="0" max="99999999" />
@@ -148,7 +148,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-height-scale">Height Scale (m)</label>
-            <output id="out-height-scale">${this.config.height_scale}m</output>
+            <input type="text" id="out-height-scale" class="input-text" value="${this.config.height_scale}m" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-height-scale" class="input-range" min="30" max="250" step="5" value="${this.config.height_scale}" />
         </div>
@@ -157,7 +157,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-scale">Perlin Noise Scale</label>
-            <output id="out-scale">${this.config.scale}</output>
+            <input type="text" id="out-scale" class="input-text" value="${this.config.scale}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-scale" class="input-range" min="64" max="600" step="8" value="${this.config.scale}" />
         </div>
@@ -166,7 +166,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-octaves">Fractal Octaves</label>
-            <output id="out-octaves">${this.config.octaves}</output>
+            <input type="text" id="out-octaves" class="input-text" value="${this.config.octaves}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-octaves" class="input-range" min="1" max="10" step="1" value="${this.config.octaves}" />
         </div>
@@ -175,7 +175,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-persistence">Fractal Persistence</label>
-            <output id="out-persistence">${this.config.persistence.toFixed(2)}</output>
+            <input type="text" id="out-persistence" class="input-text" value="${this.config.persistence.toFixed(2)}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-persistence" class="input-range" min="0.1" max="0.9" step="0.05" value="${this.config.persistence}" />
         </div>
@@ -184,7 +184,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-lacunarity">Fractal Lacunarity</label>
-            <output id="out-lacunarity">${this.config.lacunarity.toFixed(1)}</output>
+            <input type="text" id="out-lacunarity" class="input-text" value="${this.config.lacunarity.toFixed(1)}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-lacunarity" class="input-range" min="1.2" max="3.5" step="0.1" value="${this.config.lacunarity}" />
         </div>
@@ -193,7 +193,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-warp">Domain Warp Perturbation</label>
-            <output id="out-warp">${this.config.domain_warp_strength}</output>
+            <input type="text" id="out-warp" class="input-text" value="${this.config.domain_warp_strength}" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-warp" class="input-range" min="0" max="120" step="5" value="${this.config.domain_warp_strength}" />
         </div>
@@ -202,7 +202,7 @@ export class TerrainPanel {
         <div class="form-group">
           <div class="label-row">
             <label for="terrain-erosion">Erosion Particle Count</label>
-            <output id="out-erosion">${(this.config.erosion_droplets / 1000).toFixed(0)}k</output>
+            <input type="text" id="out-erosion" class="input-text" value="${(this.config.erosion_droplets / 1000).toFixed(0)}k" style="width: 70px; text-align: right; padding: 2px; font-size: 11px;" />
           </div>
           <input type="range" id="terrain-erosion" class="input-range" min="0" max="150000" step="5000" value="${this.config.erosion_droplets}" />
         </div>
@@ -245,13 +245,23 @@ export class TerrainPanel {
     });
 
     // Sliders with synchronized outputs
-    const bindSlider = (id, outId, key, formatter = (v) => v) => {
+    const bindSlider = (id, outId, key, formatter = (v) => v, parser = (v) => parseFloat(v)) => {
       const slider = this.container.querySelector(id);
       const out = this.container.querySelector(outId);
       if (!slider || !out) return;
+      
       slider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
         this.config[key] = val;
+        out.value = formatter(val);
+      });
+      
+      out.addEventListener('change', (e) => {
+        let textVal = e.target.value.replace(/[^0-9.-]/g, '');
+        if (!textVal) return;
+        const val = parser(textVal);
+        this.config[key] = val;
+        slider.value = val;
         out.value = formatter(val);
       });
     };
