@@ -352,7 +352,7 @@ def flatten_zone_footprints(
         is_flat_mask[inner_mask] = True
         
         # Terracing threshold: if elevation variance across the footprint > 15m, apply terracing
-        if (max_elev - min_elev) > 15.0:
+        if (max_elev - min_elev) > 28.0:
             terrace_step = 8.0 # 8 meter vertical steps
             # Calculate terraced heights for the inner mask based on original terrain
             stepped = np.round((flattened[inner_mask] - median_elev) / terrace_step) * terrace_step + median_elev
@@ -377,6 +377,10 @@ def flatten_zone_footprints(
     # 2. Look up the flat elevation of the nearest edge pixel
     nearest_flat_h = target_heights[indices[0], indices[1]]
     
+    # Smooth the target heights to eliminate Voronoi boundary "gashes" 
+    # created by the discrete terrace steps projecting radially outward.
+    nearest_flat_h_smoothed = scipy.ndimage.gaussian_filter(nearest_flat_h, sigma=5.0)
+    nearest_flat_h = np.where(is_flat_mask, target_heights, nearest_flat_h_smoothed)
     
     # 3. Apply maximum allowable slope with parabolic curvature
     # The further from the city, the steeper the allowed slope, so the ramp curves naturally 
