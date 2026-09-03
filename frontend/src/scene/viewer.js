@@ -68,11 +68,11 @@ export class WorldViewer {
     // 1. Create Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0f1d);
-    this.scene.fog = new THREE.FogExp2(0x0a0f1d, 0.0004);
+    this.scene.fog = new THREE.FogExp2(0x1a2133, 0.00015);
 
     // 2. Create Camera
     const aspect = this.canvas.clientWidth / (this.canvas.clientHeight || 1);
-    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.5, 6000);
+    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.5, 12000);
     this.camera.position.set(500, 450, 950);
 
     // 3. Create WebGLRenderer
@@ -127,11 +127,11 @@ export class WorldViewer {
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
     this.sunLight.shadow.camera.near = 10;
-    this.sunLight.shadow.camera.far = 3500;
-    this.sunLight.shadow.camera.left = -750;
-    this.sunLight.shadow.camera.right = 750;
-    this.sunLight.shadow.camera.top = 750;
-    this.sunLight.shadow.camera.bottom = -750;
+    this.sunLight.shadow.camera.far = 6500;
+    this.sunLight.shadow.camera.left = -2000;
+    this.sunLight.shadow.camera.right = 2000;
+    this.sunLight.shadow.camera.top = 2000;
+    this.sunLight.shadow.camera.bottom = -2000;
     this.sunLight.shadow.bias = -0.0003;
     this.scene.add(this.sunLight);
 

@@ -109,7 +109,15 @@ export class TerrainPanel {
         </div>
 
         <!-- Max Road Incline Grade -->
+        
+        <!-- Generate Road Network -->
         <div class="form-group">
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span>Generate Road Network</span>
+            <input type="checkbox" id="terrain-generate-roads" checked class="modern-checkbox">
+          </label>
+        </div>
+<div class="form-group">
           <div class="label-row">
             <label for="terrain-road-slope">Max Road Incline Grade</label>
             <output id="out-road-slope">${Math.round(this.config.max_road_slope * 100)}%</output>
@@ -254,6 +262,15 @@ export class TerrainPanel {
     bindSlider('#terrain-deformation', '#out-deformation', 'deformation_strength', (v) => `${Math.round(v * 100)}%`);
     bindSlider('#terrain-edge-margin', '#out-edge-margin', 'edge_margin', (v) => `${v}m`);
     bindSlider('#terrain-road-slope', '#out-road-slope', 'max_road_slope', (v) => `${Math.round(v * 100)}%`);
+
+    // Road Toggle
+    const chkRoads = this.container.querySelector('#terrain-generate-roads');
+    if (chkRoads) {
+      chkRoads.addEventListener('change', (e) => {
+        this.config.generate_roads = e.target.checked;
+      });
+    }
+
 
     // Standard Parameters
     bindSlider('#terrain-height-scale', '#out-height-scale', 'height_scale', (v) => `${v}m`);
