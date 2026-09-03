@@ -72,3 +72,6 @@ backend/app/catalog/catalog.json
 
 # Agent Logs
 .agents/
+backend/.DS_Store
+backend/app/.DS_Store
+unity/.DS_Store

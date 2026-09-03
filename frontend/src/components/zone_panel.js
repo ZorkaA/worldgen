@@ -423,6 +423,54 @@ export class ZonePanel {
     });
 
     // Attach Focus Button Listeners
+    
+    const editButtons = listContainer.querySelectorAll('.btn-edit-zone');
+    editButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const zoneId = btn.getAttribute('data-zone-id');
+        const form = listContainer.querySelector(`#edit-form-${zoneId}`);
+        if (form.style.display === 'none') {
+          form.style.display = 'flex';
+        } else {
+          form.style.display = 'none';
+        }
+      });
+    });
+    
+    const saveEditButtons = listContainer.querySelectorAll('.btn-save-zone-edit');
+    saveEditButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const zoneId = btn.getAttribute('data-zone-id');
+        const form = listContainer.querySelector(`#edit-form-${zoneId}`);
+        
+        const template = form.querySelector('.edit-zone-template').value;
+        const radius = parseFloat(form.querySelector('.edit-zone-radius').value);
+        const density = parseFloat(form.querySelector('.edit-zone-density').value);
+        const faction = form.querySelector('.edit-zone-faction').value;
+        const destruction = form.querySelector('.edit-zone-destruction').value;
+        
+        const target = this.activeZones.find((z) => z.id === zoneId);
+        if (target) {
+            target.type = template;
+            target.zone_type = template;
+            target.radius = radius;
+            target.density = density;
+            target.faction = faction;
+            target.destruction = destruction;
+            
+            form.style.display = 'none';
+            if (this.onUpdateZone) {
+                this.onUpdateZone(zoneId, target);
+            }
+            if (this.onZonesChanged) {
+                this.onZonesChanged(this.activeZones);
+            }
+        }
+      });
+    });
+
     const focusButtons = listContainer.querySelectorAll('.btn-focus-zone');
     focusButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {

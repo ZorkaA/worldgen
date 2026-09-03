@@ -23,6 +23,7 @@ export class TerrainPanel {
       deformation_strength: 0.85,
       edge_margin: 150.0,
       max_road_slope: 0.25,
+      generate_roads: true,
       height_scale: 120.0,
       scale: 256.0,
       octaves: 6,

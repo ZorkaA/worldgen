@@ -115,6 +115,8 @@ def recompute_world_endpoint(request: Optional[RecomputeRequest] = None):
         flattening_falloff=request.flattening_falloff,
         flattening_margin_ratio=request.flattening_margin_ratio,
         max_road_slope=request.max_road_slope,
+        generate_roads=request.generate_roads,
+
         adaptive_mesh_max_error=request.adaptive_mesh_max_error,
     )
 

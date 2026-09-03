@@ -138,6 +138,8 @@ class TerrainConfig(BaseModel):
     flattening_falloff: str = Field("cosine", description="cosine, smootherstep, cubic, smoothstep")
     flattening_margin_ratio: float = Field(1.45, ge=1.05, le=3.0)
     max_road_slope: float = Field(0.25, ge=0.01, le=2.0)
+    generate_roads: bool = True
+
     adaptive_mesh_max_error: float = Field(1.0, ge=0.01, le=50.0)
 
 
@@ -183,6 +185,8 @@ class GenerateWorldRequest(BaseModel):
     flattening_falloff: Optional[str] = None
     flattening_margin_ratio: Optional[float] = None
     max_road_slope: Optional[float] = None
+    generate_roads: Optional[bool] = None
+
     adaptive_mesh_max_error: Optional[float] = None
     min_zone_distance: Optional[float] = None
     zone_count_target: Optional[int] = None
@@ -214,6 +218,8 @@ class RecomputeRequest(BaseModel):
     flattening_falloff: Optional[str] = None
     flattening_margin_ratio: Optional[float] = None
     max_road_slope: Optional[float] = None
+    generate_roads: Optional[bool] = None
+
     adaptive_mesh_max_error: Optional[float] = None
 
 

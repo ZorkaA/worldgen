@@ -377,19 +377,47 @@ def flatten_zone_footprints(
     # 2. Look up the flat elevation of the nearest edge pixel
     nearest_flat_h = target_heights[indices[0], indices[1]]
     
-    # 3. Apply maximum allowable slope (e.g. 22% grade)
-    max_slope = getattr(terrain_config, "max_road_slope", 0.25) or 0.25
-    max_slope = max(0.15, max_slope) # ensure it doesn't get too flat
     
-    min_allowed_h = nearest_flat_h - D * max_slope
-    max_allowed_h = nearest_flat_h + D * max_slope
+    # 3. Apply maximum allowable slope with parabolic curvature
+    # The further from the city, the steeper the allowed slope, so the ramp curves naturally 
+    # to intersect the mountain instead of shooting out infinitely.
+    max_slope = getattr(terrain_config, "max_road_slope", 0.25) or 0.25
+    max_slope = max(0.15, max_slope)
+    
+    curvature = 0.003 # steepens by 0.3% per meter
+    drop = D * max_slope + (D ** 2) * curvature
+    
+    min_allowed_h = nearest_flat_h - drop
+    max_allowed_h = nearest_flat_h + drop
+
+    
     
     # 4. Clip natural terrain so it never exceeds the max_slope from the city edge
     # This pushes the "cliff" backward into the mountain into a natural ramp!
-    flattened = np.clip(flattened, min_allowed_h, max_allowed_h)
+    clipped_h = np.clip(flattened, min_allowed_h, max_allowed_h)
+
+    # 4b. To make the ramp look natural, re-inject the high-frequency detail (roughness) of the original terrain!
+    # original high frequency = original - smooth(original)
+    smoothed_orig = scipy.ndimage.gaussian_filter(flattened, sigma=5.0)
+    high_freq_noise = flattened - smoothed_orig
+    
+    # Apply noise only to areas that were significantly modified (the artificial ramp)
+    # The more it was clipped, the more we want to retain the original's texture.
+    diff = np.abs(clipped_h - flattened)
+    noise_mask = np.clip(diff / 5.0, 0.0, 1.0)
+    
+    flattened = clipped_h + high_freq_noise * noise_mask * 0.8
+    
+    # Optional: Parabolic curvature to prevent ramps from extending infinitely.
+    # At D=0, allowed slope is max_slope. As D increases, the allowed slope becomes steeper, 
+    # forcing it to merge with the mountain faster.
+    # We did that simply by adding noise, which makes it look less like an artificial pyramid.
+    # But let's also restrict the distance transform by curving the limit:
+    # We can actually just let the noise do the visual work first.
 
     # 5. Smooth the mathematically sharp corners
     smoothed = scipy.ndimage.gaussian_filter(flattened, sigma=1.5)
+
     
     # Blend smoothed result heavily near the boundary (Distance < 15m) to round off sharp cuts
     # D == 0 (inside zone): full sharp target height to keep it flat
