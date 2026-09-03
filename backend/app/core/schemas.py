@@ -162,6 +162,9 @@ class GenerateWorldRequest(BaseModel):
     zones: Optional[Union[ZoneConfig, List[Zone]]] = None
     zones_list: Optional[List[Zone]] = None
     existing_zones: Optional[List[Zone]] = None
+    zone_id: Optional[str] = None
+    new_position: Optional[List[float]] = None
+
 
     # Flat configuration overrides for top-level flexibility
     resolution: Optional[int] = None
@@ -197,6 +200,9 @@ class RecomputeRequest(BaseModel):
     zones: Optional[List[Zone]] = None
     zones_list: Optional[List[Zone]] = None
     existing_zones: Optional[List[Zone]] = None
+    zone_id: Optional[str] = None
+    new_position: Optional[List[float]] = None
+
 
     # Overrides
     resolution: Optional[int] = None

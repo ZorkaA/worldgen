@@ -2,6 +2,7 @@
 
 import math
 import numpy as np
+import scipy.ndimage
 from typing import List, Tuple, Optional, Dict, Any
 from ..core.schemas import Zone, ZoneConfig, TerrainConfig
 
@@ -296,21 +297,22 @@ def flatten_zone_footprints(
     zone_internal_data: Optional[List[Dict[str, Any]]],
     terrain_config: TerrainConfig,
 ) -> np.ndarray:
-    """Flatten plateau heightmap beneath zones using smooth non-linear falloff (Cosine, Smootherstep, Cubic)."""
+    """Flatten plateau heightmap using Distance Transform and adaptive cut-and-fill grading."""
     res_y, res_x = heightmap.shape
     world_w = terrain_config.world_size[0]
     world_l = terrain_config.world_size[2]
+    
+    cell_w = world_w / max(1, res_x - 1)
+    cell_l = world_l / max(1, res_y - 1)
 
     flattened = heightmap.copy()
+    target_heights = np.zeros_like(flattened)
+    is_flat_mask = np.zeros((res_y, res_x), dtype=bool)
 
     # Precalculate world coordinate grid
     xs = np.linspace(0.0, world_w, res_x, dtype=np.float32)
     zs = np.linspace(0.0, world_l, res_y, dtype=np.float32)
     grid_x, grid_z = np.meshgrid(xs, zs)
-
-    falloff_type = getattr(terrain_config, "flattening_falloff", "cosine") or "cosine"
-    falloff_type = falloff_type.lower()
-    margin_ratio = getattr(terrain_config, "flattening_margin_ratio", 1.45) or 1.45
 
     for i, zone in enumerate(zones):
         if zone_internal_data and i < len(zone_internal_data):
@@ -334,45 +336,84 @@ def flatten_zone_footprints(
 
         # Deformed radius field
         r_inner = base_r * (1.0 + 0.15 * np.sin(3.0 * theta_grid + phi1) + 0.10 * np.cos(5.0 * theta_grid + phi2))
-        r_outer = r_inner * margin_ratio
+        inner_mask = dist_grid <= r_inner
 
-        # Bounding box filter for optimization
-        max_reach = base_r * (margin_ratio * 1.15)
-        mask_roi = dist_grid <= max_reach
-
-        if not np.any(mask_roi):
+        if not np.any(inner_mask):
             continue
 
-        # Compute median elevation in inner zone
-        inner_mask = dist_grid <= r_inner
-        if np.any(inner_mask):
-            target_elevation = float(np.median(flattened[inner_mask]))
+        zone_elevations = flattened[inner_mask]
+        min_elev = float(np.min(zone_elevations))
+        max_elev = float(np.max(zone_elevations))
+        median_elev = float(np.median(zone_elevations))
+        
+        # Update zone center elevation in zone object for buildings
+        zone.center[1] = round(median_elev, 2)
+
+        is_flat_mask[inner_mask] = True
+        
+        # Terracing threshold: if elevation variance across the footprint > 15m, apply terracing
+        if (max_elev - min_elev) > 15.0:
+            terrace_step = 8.0 # 8 meter vertical steps
+            # Calculate terraced heights for the inner mask based on original terrain
+            stepped = np.round((flattened[inner_mask] - median_elev) / terrace_step) * terrace_step + median_elev
+            target_heights[inner_mask] = stepped
         else:
-            target_elevation = _sample_heightmap_bilinear(flattened, cx, cz, world_w, world_l)
+            target_heights[inner_mask] = median_elev
 
-        # Update zone center elevation in zone object
-        zone.center[1] = round(target_elevation, 2)
+    if not np.any(is_flat_mask):
+        return flattened
 
-        # Smooth falloff blending factor t in [0.0, 1.0]
-        # t = 0 -> inside inner zone (full target elevation, weight on terrain w = 0)
-        # t = 1 -> outside outer zone (original elevation, weight on terrain w = 1)
-        denom = np.maximum(1e-4, (r_outer[mask_roi] - r_inner[mask_roi]))
-        t = np.clip((dist_grid[mask_roi] - r_inner[mask_roi]) / denom, 0.0, 1.0)
+    # Apply Target Heights
+    flattened[is_flat_mask] = target_heights[is_flat_mask]
 
-        if falloff_type == "cosine":
-            # Cosine C1 continuous falloff: 0.5 * (1 - cos(pi * t))
-            w = 0.5 * (1.0 - np.cos(np.pi * t))
-        elif falloff_type in ["smootherstep", "quintic"]:
-            # Perlin's C2 Quintic Smootherstep: 6t^5 - 15t^4 + 10t^3 = t^3 * (t * (6t - 15) + 10)
-            w = t * t * t * (t * (6.0 * t - 15.0) + 10.0)
-        elif falloff_type in ["cubic", "smoothstep"]:
-            # Hermite C1 Smoothstep: 3t^2 - 2t^3
-            w = t * t * (3.0 - 2.0 * t)
-        else:
-            w = 0.5 * (1.0 - np.cos(np.pi * t))
+    # Adaptive Cut-and-Fill Grading via Distance Transform
+    # 1. Calculate distance from every pixel to the nearest flat zone, and get indices
+    D, indices = scipy.ndimage.distance_transform_edt(
+        ~is_flat_mask, 
+        sampling=[cell_l, cell_w],
+        return_indices=True
+    )
+    
+    # 2. Look up the flat elevation of the nearest edge pixel
+    nearest_flat_h = target_heights[indices[0], indices[1]]
+    
+    # 3. Apply maximum allowable slope (e.g. 22% grade)
+    max_slope = getattr(terrain_config, "max_road_slope", 0.25) or 0.25
+    max_slope = max(0.15, max_slope) # ensure it doesn't get too flat
+    
+    min_allowed_h = nearest_flat_h - D * max_slope
+    max_allowed_h = nearest_flat_h + D * max_slope
+    
+    # 4. Clip natural terrain so it never exceeds the max_slope from the city edge
+    # This pushes the "cliff" backward into the mountain into a natural ramp!
+    flattened = np.clip(flattened, min_allowed_h, max_allowed_h)
 
-        current_h = flattened[mask_roi]
-        blended_h = (1.0 - w) * target_elevation + w * current_h
-        flattened[mask_roi] = blended_h.astype(np.float32)
+    # 5. Smooth the mathematically sharp corners
+    smoothed = scipy.ndimage.gaussian_filter(flattened, sigma=1.5)
+    
+    # Blend smoothed result heavily near the boundary (Distance < 15m) to round off sharp cuts
+    # D == 0 (inside zone): full sharp target height to keep it flat
+    # D > 0: blend with smooth to soften the retaining walls
+    blend_factor = np.clip(D / 15.0, 0.0, 1.0)
+    
+    # For distance > 15m, it becomes 100% the clipped terrain (blend_factor=1)
+    # Inside the zone (D=0), we don't want it smoothed so buildings sit perfectly flat (blend_factor=1 for original target? No wait, if blend_factor=0, we should use flattened)
+    # Actually, we ONLY want to smooth the gradient transitions, not the whole map.
+    # The gaussian filter softens everything. We just want to use the smoothed map near D < 15m and D > 0.
+    
+    # Create an edge mask: 1.0 near edge (D < 10), 0.0 far away
+    # D is distance outside the zone (0 inside)
+    edge_mask_out = np.exp(-(D ** 2) / (2.0 * 8.0 ** 2))
+    
+    # D_in is distance inside the zone (0 outside)
+    D_in = scipy.ndimage.distance_transform_edt(is_flat_mask, sampling=[cell_l, cell_w])
+    edge_mask_in = np.exp(-(D_in ** 2) / (2.0 * 6.0 ** 2))
+    
+    # We only want edge_mask_in to apply INSIDE the zone, and edge_mask_out OUTSIDE.
+    # Since D=0 inside, edge_mask_out=1 inside. Since D_in=0 outside, edge_mask_in=1 outside.
+    # We mask them so they only apply to their respective domains!
+    edge_mask = np.where(is_flat_mask, edge_mask_in, edge_mask_out)
+    
+    final_terrain = flattened * (1.0 - edge_mask) + smoothed * edge_mask
 
-    return flattened
+    return final_terrain.astype(np.float32)

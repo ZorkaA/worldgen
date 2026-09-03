@@ -13,7 +13,7 @@ import subprocess
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 
-from backend.app.catalog.vlm_enrich import enrich_asset_vlm, heuristic_enrich_asset
+from app.catalog.vlm_enrich import enrich_asset_vlm, heuristic_enrich_asset
 
 BLENDER_BIN = "/Applications/Blender.app/Contents/MacOS/Blender"
 DEFAULT_MODELS_DIR = "/Users/jack/Downloads/assetripper_export/ExportedProject/Assets/PolygonMilitary/Models"

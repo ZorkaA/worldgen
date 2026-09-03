@@ -90,11 +90,22 @@ def recompute_world_endpoint(request: Optional[RecomputeRequest] = None):
 
     effective_seed = request.seed if request.seed is not None else 42
 
+    active_zones = request.zones or request.zones_list or request.existing_zones
+    if active_zones is None and _active_manifest:
+        active_zones = _active_manifest.zones
+
+    if active_zones and request.zone_id and request.new_position:
+        for z in active_zones:
+            if z.id == request.zone_id:
+                z.center = request.new_position
+                break
+
     # Map RecomputeRequest to GenerateWorldRequest
     gen_req = GenerateWorldRequest(
         seed=effective_seed,
         terrain=request.terrain,
-        existing_zones=request.zones or request.zones_list or request.existing_zones,
+        existing_zones=active_zones,
+
         resolution=request.resolution,
         world_size=request.world_size,
         map_width_km=request.map_width_km,

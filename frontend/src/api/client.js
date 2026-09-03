@@ -225,7 +225,7 @@ export class ApiClient {
             zone_id: zoneId,
             new_position: [newPos.x, newPos.y, newPos.z],
             config: currentConfig,
-            manifest: this.activeManifest
+            zones: this.activeManifest ? this.activeManifest.zones : []
           }),
           signal: AbortSignal.timeout(10000),
         });
