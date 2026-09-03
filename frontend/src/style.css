@@ -1252,8 +1252,8 @@ html, body {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -1263,19 +1263,19 @@ html, body {
   position: relative;
 }
 .modern-checkbox:checked {
-  background-color: var(--accent-color);
-  border-color: var(--accent-color);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 .modern-checkbox:checked::after {
   content: '';
   width: 5px;
   height: 10px;
-  border: solid var(--text-color);
+  border: solid var(--text-primary);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
   position: absolute;
   top: 1px;
 }
 .modern-checkbox:hover {
-  border-color: var(--accent-color);
+  border-color: var(--color-primary);
 }
