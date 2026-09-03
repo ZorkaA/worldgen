@@ -224,7 +224,7 @@ export class ApiClient {
           body: JSON.stringify({
             zone_id: zoneId,
             new_position: [newPos.x, newPos.y, newPos.z],
-            config: currentConfig,
+            ...currentConfig,
             zones: this.activeManifest ? this.activeManifest.zones : []
           }),
           signal: AbortSignal.timeout(10000),

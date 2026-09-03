@@ -1245,3 +1245,37 @@ html, body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Modern Checkbox Styling */
+.modern-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.modern-checkbox:checked {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+.modern-checkbox:checked::after {
+  content: '';
+  width: 5px;
+  height: 10px;
+  border: solid var(--text-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  position: absolute;
+  top: 1px;
+}
+.modern-checkbox:hover {
+  border-color: var(--accent-color);
+}

@@ -177,12 +177,18 @@ def generate_world_pipeline(
 
     # 6. Slope-Aware A* Road Network Routing & Spline Smoothing
     t0 = time.perf_counter()
-    roads = generate_roads(
-        heightmap=flattened_heightmap,
-        zones=zones,
-        terrain_config=terrain_config,
-        seed=uint_seed,
-    )
+    roads = []
+    do_roads = getattr(terrain_config, "generate_roads", True)
+    if hasattr(request, "generate_roads") and request.generate_roads is not None:
+        do_roads = request.generate_roads
+
+    if do_roads:
+        roads = generate_roads(
+            heightmap=flattened_heightmap,
+            zones=zones,
+            terrain_config=terrain_config,
+            seed=uint_seed,
+        )
     t_roads = time.perf_counter() - t0
 
     # 7. Adaptive Mesh Decimation
