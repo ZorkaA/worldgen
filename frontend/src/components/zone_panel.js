@@ -38,8 +38,7 @@ export class ZonePanel {
       { id: 'airfield', name: 'Forward Airfield & Logistics' },
       { id: 'outpost', name: 'Tactical Outpost & Tower' },
       { id: 'radar_station', name: 'Radar & Comms Array' },
-      { id: 'depot', name: 'Supply Depot & Motor Pool' },
-      { id: 'city', name: 'High-Density City' }
+      { id: 'depot', name: 'Supply Depot & Motor Pool' }
     ];
 
     this.render();
