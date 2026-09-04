@@ -1,6 +1,6 @@
 # WorldGen
 
-A tool for generating procedural military 3D environments using Synty PolygonMilitary assets. It includes a Python backend for terrain generation, a Vite/Three.js web editor, and a Unity package for importing the final worlds.
+A tool for generating procedural 3D environments using Synty PolygonMilitary assets. It includes a Python backend for terrain generation, a Vite/Three.js web editor, and a Unity package for importing the final worlds.
 
 ## Prerequisites
 
