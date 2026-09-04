@@ -250,7 +250,7 @@ def generate_zones(
             else:
                 density = str(zone_config.density)
         else:
-            density = rng.choice(["low", "medium", "high"], p=[0.25, 0.50, 0.25])
+            density = rng.choice(["low", "medium", "high"], p=[0.10, 0.30, 0.60])
 
         radius = float(rng.uniform(zone_config.min_radius, zone_config.max_radius))
 

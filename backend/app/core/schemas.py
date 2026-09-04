@@ -144,7 +144,7 @@ class TerrainConfig(BaseModel):
 
 
 class ZoneConfig(BaseModel):
-    min_zone_distance: float = Field(120.0, ge=10.0, le=1000.0)
+    min_zone_distance: float = Field(90.0, ge=10.0, le=1000.0)
     zone_count_target: Optional[int] = Field(None, ge=1, le=100)
     default_factions: List[str] = Field(default_factory=lambda: ["A", "B", "C"])
     max_destruction: int = Field(4, ge=1, le=4)

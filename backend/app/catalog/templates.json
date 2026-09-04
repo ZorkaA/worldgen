@@ -431,6 +431,258 @@
           ]
         }
       ]
+    },
+    "city": {
+      "type": "city",
+      "display_name": "High-Density Urban City",
+      "sub_districts": [
+        {
+          "district_id": "downtown_core",
+          "center_offset": [
+            0.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "town_hall",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.0,
+              "buffer_meters": 3.0,
+              "priority": 1
+            },
+            {
+              "slot_id": "market_sq_1",
+              "rel_pos": [
+                -15.0,
+                0.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.2,
+              "buffer_meters": 2.5,
+              "priority": 2
+            },
+            {
+              "slot_id": "market_sq_2",
+              "rel_pos": [
+                15.0,
+                0.0
+              ],
+              "rotation_deg": -90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.4,
+              "buffer_meters": 2.5,
+              "priority": 2
+            },
+            {
+              "slot_id": "plaza_tent",
+              "rel_pos": [
+                0.0,
+                15.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Tent_01"
+              ],
+              "density_threshold": 0.6,
+              "buffer_meters": 2.0,
+              "priority": 3
+            }
+          ]
+        },
+        {
+          "district_id": "residential_north",
+          "center_offset": [
+            0.0,
+            35.0
+          ],
+          "slots": [
+            {
+              "slot_id": "res_n_1",
+              "rel_pos": [
+                -12.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.1,
+              "buffer_meters": 2.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "res_n_2",
+              "rel_pos": [
+                12.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.3,
+              "buffer_meters": 2.0,
+              "priority": 3
+            },
+            {
+              "slot_id": "res_n_3",
+              "rel_pos": [
+                -12.0,
+                18.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.5,
+              "buffer_meters": 2.0,
+              "priority": 4
+            },
+            {
+              "slot_id": "res_n_4",
+              "rel_pos": [
+                12.0,
+                18.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.7,
+              "buffer_meters": 2.0,
+              "priority": 4
+            }
+          ]
+        },
+        {
+          "district_id": "residential_east",
+          "center_offset": [
+            35.0,
+            0.0
+          ],
+          "slots": [
+            {
+              "slot_id": "res_e_1",
+              "rel_pos": [
+                0.0,
+                -12.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.2,
+              "buffer_meters": 2.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "res_e_2",
+              "rel_pos": [
+                0.0,
+                12.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.4,
+              "buffer_meters": 2.0,
+              "priority": 3
+            },
+            {
+              "slot_id": "res_e_3",
+              "rel_pos": [
+                18.0,
+                -12.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.6,
+              "buffer_meters": 2.0,
+              "priority": 4
+            },
+            {
+              "slot_id": "res_e_4",
+              "rel_pos": [
+                18.0,
+                12.0
+              ],
+              "rotation_deg": 90.0,
+              "placement_role": "building",
+              "candidates": [
+                "SM_Bld_Village_House_01"
+              ],
+              "density_threshold": 0.8,
+              "buffer_meters": 2.0,
+              "priority": 4
+            }
+          ]
+        },
+        {
+          "district_id": "city_defenses",
+          "center_offset": [
+            0.0,
+            -40.0
+          ],
+          "slots": [
+            {
+              "slot_id": "main_gate",
+              "rel_pos": [
+                0.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "barrier",
+              "candidates": [
+                "SM_Prop_Sandbags_01"
+              ],
+              "density_threshold": 0.3,
+              "buffer_meters": 2.0,
+              "priority": 2
+            },
+            {
+              "slot_id": "gate_tower",
+              "rel_pos": [
+                10.0,
+                0.0
+              ],
+              "rotation_deg": 0.0,
+              "placement_role": "defense",
+              "candidates": [
+                "SM_Bld_Watchtower_01"
+              ],
+              "density_threshold": 0.6,
+              "buffer_meters": 3.0,
+              "priority": 3
+            }
+          ]
+        }
+      ]
     }
   }
 }
