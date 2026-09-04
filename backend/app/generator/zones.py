@@ -353,7 +353,7 @@ def flatten_zone_footprints(
         
         # Terracing threshold: if elevation variance across the footprint > 15m, apply terracing
         if (max_elev - min_elev) > 15.0:
-            terrace_step = 8.0 # 8 meter vertical steps
+            terrace_step = 20.0 # 20 meter vertical steps (wider horizontal plateaus)
             # Calculate terraced heights for the inner mask based on original terrain
             stepped = np.round((flattened[inner_mask] - median_elev) / terrace_step) * terrace_step + median_elev
             target_heights[inner_mask] = stepped
