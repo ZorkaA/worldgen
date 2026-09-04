@@ -446,13 +446,14 @@ export class ApiClient {
     // Generate Zones
     const factions = ['A', 'B', 'C'];
     const destructions = ['01', '02', '03', '04'];
-    const templateTypes = ['military_base', 'airfield', 'outpost', 'radar_station', 'depot'];
+    const templateTypes = ['military_base', 'airfield', 'outpost', 'radar_station', 'depot', 'city'];
     const zoneDisplayNames = {
       military_base: 'Fortified Military Base',
       airfield: 'Forward Airfield',
       outpost: 'Tactical Outpost',
       radar_station: 'Radar Station',
-      depot: 'Supply Depot'
+      depot: 'Supply Depot',
+      city: 'High-Density City'
     };
 
     const zones = [];
@@ -520,6 +521,12 @@ export class ApiClient {
           { name: 'SM_Bld_Warehouse_01', size: [16.0, 8.0, 20.0], role: 'depot' },
           { name: 'SM_Bld_Hangar_01', size: [18.0, 9.5, 24.0], role: 'hangar' },
           { name: 'SM_Prop_Crate_01', size: [2.5, 2.0, 2.5], role: 'storage' }
+        ],
+        city: [
+          { name: 'SM_Bld_Village_House_01', size: [9.0, 11.0, 6.2], role: 'building' },
+          { name: 'SM_Bld_Village_House_02', size: [10.0, 10.0, 8.0], role: 'building' },
+          { name: 'SM_Bld_Tent_01', size: [7.8, 4.1, 12.0], role: 'building' },
+          { name: 'SM_Prop_Sandbags_01', size: [2.4, 1.2, 1.1], role: 'barrier' }
         ]
       };
 
