@@ -90,7 +90,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
     placement_role = "building"
     tags = ["military", "structure"]
     description = f"PolygonMilitary asset: {asset_name}."
-    affinities = ["military_base", "outpost"]
+    affinities = ["military_base", "outpost", "city"]
     suggested_density = "medium"
     footprint_type = "rectangular"
     stackable = False
@@ -103,7 +103,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "building"
         tags = ["tent", "military", "shelter", "barracks", "fabric", "canvas"]
         description = "Standard military canvas tent used for personnel quarters, field hospital, or logistics staging."
-        affinities = ["military_base", "outpost", "checkpoint"]
+        affinities = ["military_base", "outpost", "city", "checkpoint"]
         suggested_density = "medium"
         footprint_type = "rectangular"
     elif "barracks" in name_lower:
@@ -111,7 +111,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "building"
         tags = ["barracks", "military", "quarters", "housing", "compound", "building"]
         description = "Reinforced military barracks building for troop housing and operations."
-        affinities = ["military_base", "outpost"]
+        affinities = ["military_base", "outpost", "city"]
         suggested_density = "medium"
         footprint_type = "rectangular"
     elif "controltower" in name_lower or "clock_tower" in name_lower or "tower" in name_lower:
@@ -127,7 +127,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "building"
         tags = ["house", "village", "residential", "urban", "compound", "building"]
         description = "Urban village compound residential structure."
-        affinities = ["outpost", "depot"]
+        affinities = ["outpost", "depot", "city"]
         suggested_density = "high"
         footprint_type = "rectangular"
     elif "watertank" in name_lower or "water_tank" in name_lower:
@@ -135,7 +135,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "infrastructure"
         tags = ["water_tank", "utility", "reservoir", "infrastructure", "industrial"]
         description = "Elevated industrial water storage reservoir."
-        affinities = ["military_base", "depot", "outpost"]
+        affinities = ["military_base", "depot", "outpost", "city"]
         suggested_density = "low"
         footprint_type = "circular"
     elif "hangar" in name_lower:
@@ -152,7 +152,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
             placement_role = "fence"
             tags = ["fence", "barrier", "perimeter", "security", "wire", "obstacle"]
             description = "Perimeter security fence barrier for base boundary fortification."
-            affinities = ["military_base", "outpost", "checkpoint", "airfield"]
+            affinities = ["military_base", "outpost", "city", "checkpoint", "airfield"]
             suggested_density = "high"
             footprint_type = "linear"
         else:
@@ -160,7 +160,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
             placement_role = "defensive_structure"
             tags = ["wall", "gate", "defense", "barrier", "fortification", "archway"]
             description = "Reinforced perimeter fortification wall and compound gate."
-            affinities = ["military_base", "outpost", "checkpoint"]
+            affinities = ["military_base", "outpost", "city", "checkpoint"]
             suggested_density = "high"
             footprint_type = "linear"
     elif "bridge" in name_lower:
@@ -168,7 +168,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "infrastructure"
         tags = ["bridge", "crossing", "road", "infrastructure"]
         description = "Heavy tactical crossing bridge segment."
-        affinities = ["military_base", "outpost", "checkpoint"]
+        affinities = ["military_base", "outpost", "city", "checkpoint"]
         suggested_density = "low"
         footprint_type = "linear"
     elif "sandbag" in name_lower or "bunker" in name_lower or "trench" in name_lower:
@@ -176,7 +176,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "defensive_structure"
         tags = ["sandbag", "fortification", "bunker", "defense", "cover", "trench"]
         description = "Fortified defensive sandbag position providing combat ballistic cover."
-        affinities = ["military_base", "outpost", "checkpoint"]
+        affinities = ["military_base", "outpost", "city", "checkpoint"]
         suggested_density = "high"
         footprint_type = "linear"
     elif "pipeline" in name_lower or "pipe" in name_lower:
@@ -200,7 +200,7 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         placement_role = "prop"
         tags = ["furniture", "interior", "military", "barracks"]
         description = "Military field furniture and barracks interior equipment."
-        affinities = ["military_base", "outpost"]
+        affinities = ["military_base", "outpost", "city"]
         suggested_density = "medium"
         footprint_type = "rectangular"
     elif "antenna" in name_lower or "radar" in name_lower or "radio" in name_lower or "dish" in name_lower:
@@ -233,35 +233,35 @@ def heuristic_enrich_asset(asset_name: str, dimensions: Optional[List[float]] = 
         else:
             tags = ["vehicle", "transport", "military", "truck", "logistics", "wheels"]
             description = "Tactical military wheeled transport vehicle."
-            affinities = ["military_base", "depot", "outpost", "checkpoint"]
+            affinities = ["military_base", "depot", "outpost", "city", "checkpoint"]
             suggested_density = "medium"
     elif "env_" in name_lower or "rock" in name_lower or "tree" in name_lower or "ground" in name_lower or "grass" in name_lower:
         category = "environment"
         placement_role = "foliage"
         tags = ["nature", "rock", "terrain", "cover", "environment", "natural"]
         description = "Natural environmental terrain feature and organic cover."
-        affinities = ["military_base", "outpost", "airfield", "depot", "checkpoint"]
+        affinities = ["military_base", "outpost", "city", "airfield", "depot", "checkpoint"]
         suggested_density = "medium"
     elif "debris" in name_lower or "rubble" in name_lower:
         category = "decorations"
         placement_role = "prop"
         tags = ["debris", "rubble", "ruins", "combat_damage", "destroyed"]
         description = "Combat blast debris and rubble scatter."
-        affinities = ["military_base", "outpost", "checkpoint", "depot"]
+        affinities = ["military_base", "outpost", "city", "checkpoint", "depot"]
         suggested_density = "high"
     elif "sm_prop_" in name_lower:
         category = "decorations"
         placement_role = "prop"
         tags = ["prop", "military", "utility", "tactical"]
         description = f"Military compound utility prop: {asset_name}."
-        affinities = ["military_base", "outpost", "depot"]
+        affinities = ["military_base", "outpost", "city", "depot"]
         suggested_density = "medium"
     elif "sm_bld_" in name_lower:
         category = "structures"
         placement_role = "building"
         tags = ["building", "military", "structure", "compound"]
         description = f"Military base building structure: {asset_name}."
-        affinities = ["military_base", "outpost"]
+        affinities = ["military_base", "outpost", "city"]
         suggested_density = "medium"
 
     if is_destroyed:
@@ -326,7 +326,7 @@ Respond ONLY with a valid JSON object matching this schema:
   "placement_role": "building" | "prop" | "foliage" | "vehicle" | "road" | "fence" | "infrastructure" | "defensive_structure",
   "tags": ["string", ...],
   "description": "A concise description of the asset.",
-  "affinities": ["military_base", "outpost", "airfield", "depot", "checkpoint", "radar_station"],
+  "affinities": ["military_base", "outpost", "city", "airfield", "depot", "checkpoint", "radar_station"],
   "suggested_density": "low" | "medium" | "high",
   "footprint_type": "rectangular" | "circular" | "linear",
   "stackable": false,

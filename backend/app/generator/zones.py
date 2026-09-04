@@ -20,14 +20,16 @@ ZONE_TYPE_NAMES = {
     "airfield": "Airfield Command",
     "depot": "Supply Depot",
     "radar_station": "Radar Station",
+    "city": "High-Density City",
 }
 
 ZONE_TYPE_PROBS = [
-    ("military_base", 0.25),
-    ("outpost", 0.35),
+    ("military_base", 0.15),
+    ("outpost", 0.25),
     ("airfield", 0.10),
-    ("depot", 0.20),
+    ("depot", 0.10),
     ("radar_station", 0.10),
+    ("city", 0.30),
 ]
 
 
